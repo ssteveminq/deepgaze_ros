@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 ### Instruction for Face_recognition package 
 
@@ -66,3 +67,6 @@ Minkyu Kim (steveminq@utexas.edu)
   
  https://github.com/hcr-hsrproject/villa_perception/tree/master/face_recognition
   
+=======
+# deepgaze_ros
+>>>>>>> 7f264fd3dce19e71dfed0fe4a1a8e0c648b7176f
