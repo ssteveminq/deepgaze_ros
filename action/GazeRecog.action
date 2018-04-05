@@ -1,0 +1,10 @@
+#goal definition
+bool start
+---
+#result definition
+string name
+bool Isknownperson
+int32 numfaces
+---
+#feedback
+bool num_face
