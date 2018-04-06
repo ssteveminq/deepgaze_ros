@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# ROS version written by Minkyu Kim
+
 #The MIT License (MIT)
 #Copyright (c) 2016 Massimiliano Patacchiola
 #
@@ -41,11 +43,8 @@ from deepgaze.motion_tracking import ParticleFilter
 
 class ObjectTracker(object):
     def __init__(self, wait=0.0):
-        # USE_WEBCAM = False
-        # template = cv2.imread('box.jpg') #Load the image
-        template = cv2.imread('north.png') #Load the image
-        # template = cv2.imread("panda.jpg") #Load the image
 
+        template = cv2.imread('north.png') #Load the image
         self.my_mask_analyser = BinaryMaskAnalyser()
         self.my_back_detector = BackProjectionColorDetector()
         self.my_back_detector.setTemplate(template) #Set the template 
@@ -53,27 +52,16 @@ class ObjectTracker(object):
         self.std=20;
         self.my_particle = ParticleFilter(480, 640, tot_particles)
         # self.my_particle = ParticleFilter(640, 480, tot_particles)
-        # self.my_particle = ParticleFilter(1920, 1080, tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
 
         image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
-        # image_topic = "/hsrb/head_rgbd_sensor/rgb/image_raw"
 	rospy.Subscriber(image_topic, Image, self.image_callback)
         self.bridge = CvBridge()
-        # cv2.startWindowThread()
-        # self.cv2_img = cv2.imread()
-        # self.image = cv2.imread(file_name)
 	
     def image_callback(self,msg):
         # print('image_callback: ')
-        # rospy.loginfo("image is of type: "+str(type(msg)))
         try:
             frame   = self.bridge.imgmsg_to_cv2(msg,"bgr8")
-            # height, width, channels = frame.shape
-            # print height, width, channels 
-            # cv2.startWindowThread()
-            # cv2.imshow("image_window", cv2_img)
-            # cv2.waitKey(30)
             frame_mask = self.my_back_detector.returnMask(frame, morph_opening=True, blur=True, kernel_size=5, iterations=2)
         
             if(self.my_mask_analyser.returnNumberOfContours(frame_mask) > 0):
@@ -93,30 +81,29 @@ class ObjectTracker(object):
                 y_center += y_noise
                 cv2.rectangle(frame, (x_rect,y_rect), (x_rect+w_rect,y_rect+h_rect), [255,0,0], 2) #BLUE rect
 
-    #Predict the position of the target
+                #Predict the position of the target
                 self.my_particle.predict(x_velocity=0, y_velocity=0, std=self.std)
 
-    #Drawing the particles.
+                #Drawing the particles.
                 self.my_particle.drawParticles(frame)
 
-    #Estimate the next position using the internal model
+               #Estimate the next position using the internal model
                 x_estimated, y_estimated, _, _ = self.my_particle.estimate()
                 cv2.circle(frame, (x_estimated, y_estimated), 3, [0,255,0], 5) #GREEN dot
 
-    #Update the filter with the last measurements
+               #Update the filter with the last measurements
                 self.my_particle.update(x_center, y_center)
 
-    #Resample the particles
+               #Resample the particles
                 self.my_particle.resample()
 
-    #Writing in the output file
+               #Writing in the output file
                # out.write(frame)
 
             cv2.imshow("image_window", frame)
             cv2.imshow('Mask', frame_mask) #show on window
-            cv2.waitKey(3)
-            # if cv2.waitKey(1) & 0xFF == ord('q'): break #Exit when Q is pressed
-            # roll = self.my_head_pose_estimator.return_roll(cv2_img)  # Evaluate the roll angle using a CNN
+            # cv2.waitKey(3)
+            if cv2.waitKey(3) & 0xFF == ord('q'): break #Exit when Q is pressed
 
         except CvBridgeError, e:
             print(e)

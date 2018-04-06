@@ -24,10 +24,18 @@ P3D_RIGHT_TEAR	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_RIGHT_TEA
 P3D_SELLION	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_SELLION = numpy.float32([0.0, 0.0, 0.0]) #27$/;"	v
 P3D_STOMION	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_STOMION = numpy.float32([10.0, 0.0, -75.0]) #62$/;"	v
 P3D_SUB_NOSE	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_SUB_NOSE = numpy.float32([5.0, 0.0, -52.0]) #33$/;"	v
+PRINT_TIME	scripts/fasa_saliency_map/ex_fasa_saliency_map_webcam.py	/^PRINT_TIME = False$/;"	v
+PRINT_TIME	scripts/fasa_saliency_map/saliecy_map.py	/^PRINT_TIME = False$/;"	v
+RESOLUTION_HEIGHT	scripts/fasa_saliency_map/ex_fasa_saliency_map_webcam.py	/^RESOLUTION_HEIGHT = 180$/;"	v
+RESOLUTION_HEIGHT	scripts/fasa_saliency_map/saliecy_map.py	/^RESOLUTION_HEIGHT = 480$/;"	v
+RESOLUTION_WIDTH	scripts/fasa_saliency_map/ex_fasa_saliency_map_webcam.py	/^RESOLUTION_WIDTH = 320$/;"	v
+RESOLUTION_WIDTH	scripts/fasa_saliency_map/saliecy_map.py	/^RESOLUTION_WIDTH = 640$/;"	v
+SaliencyManager	scripts/fasa_saliency_map/saliecy_map.py	/^class SaliencyManager(object):$/;"	c
 TRACKED_POINTS	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^TRACKED_POINTS = (0, 4, 8, 12, 16, 17, 26, 27, 30, 33, 36, 39, 42, 45, 62)$/;"	v
 USE_WEBCAM	scripts/ex_particle_filter_object_tracking_video/ex_particle_filter_object_tracking_video.py	/^USE_WEBCAM = False$/;"	v
 __init__	scripts/ex_cnn_head_pose_estimation_images/head_pose_image.py	/^    def __init__(self, wait=0.0):$/;"	m	class:Head_Dectectors
 __init__	scripts/ex_particle_filter_object_tracking_video/particle_object_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
+__init__	scripts/fasa_saliency_map/saliecy_map.py	/^    def __init__(self, wait=0.0):$/;"	m	class:SaliencyManager
 __init__	scripts/test_ros	/^	def __init__(self, wait=0.0):$/;"	m	class:FaceDectectors
 coin	scripts/ex_particle_filter_object_tracking_video/ex_particle_filter_object_tracking_video.py	/^        coin = np.random.uniform()$/;"	v
 crop_face	scripts/test_ros	/^	def crop_face(self,image_data):$/;"	m	class:FaceDectectors
@@ -42,12 +50,16 @@ image	scripts/ex_cnn_head_pose_estimation_images/ex_cnn_head_pose_estimation_ima
 image	scripts/ex_cnn_head_pose_estimation_images/ex_cnn_head_pose_estimation_images_roll.py	/^    image = cv2.imread(filepath) #Read the image with OpenCV$/;"	v
 image_callback	scripts/ex_cnn_head_pose_estimation_images/head_pose_image.py	/^    def image_callback(self,msg):$/;"	m	class:Head_Dectectors
 image_callback	scripts/ex_particle_filter_object_tracking_video/particle_object_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
+image_callback	scripts/fasa_saliency_map/saliecy_map.py	/^    def image_callback(self,msg):$/;"	m	class:SaliencyManager
 image_callback	scripts/test_ros	/^	def image_callback(self,msg):$/;"	m	class:FaceDectectors
 key_callback	scripts/test_ros	/^	def key_callback(self,msg):		#"p"$/;"	m	class:FaceDectectors
 listener	scripts/ex_cnn_head_pose_estimation_images/head_pose_image.py	/^    def listener(self,wait=0.0):$/;"	m	class:Head_Dectectors
 listener	scripts/ex_particle_filter_object_tracking_video/particle_object_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
+listener	scripts/fasa_saliency_map/saliecy_map.py	/^    def listener(self,wait=0.0):$/;"	m	class:SaliencyManager
 listener	scripts/test_ros	/^	def listener(self,wait=0.0):$/;"	m	class:FaceDectectors
 main	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^def main():$/;"	f
+main	scripts/fasa_saliency_map/ex_fasa_saliency_map_images.py	/^def main():$/;"	f
+main	scripts/fasa_saliency_map/ex_fasa_saliency_map_webcam.py	/^def main():$/;"	f
 moveBindings	scripts/test_ros	/^moveBindings = {$/;"	v
 my_back_detector	scripts/ex_particle_filter_object_tracking_video/ex_particle_filter_object_tracking_video.py	/^my_back_detector = BackProjectionColorDetector()$/;"	v
 my_head_pose_estimator	scripts/ex_cnn_head_pose_estimation_images/ex_cnn_head_pose_estimation_images.py	/^my_head_pose_estimator = CnnHeadPoseEstimator(sess) #Head pose estimation object$/;"	v
