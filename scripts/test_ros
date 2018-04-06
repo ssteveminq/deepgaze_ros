@@ -122,7 +122,6 @@ class FaceDectectors(object):
 			# Save your OpenCV2 image as a jpeg 
 			# cv2.imwrite('minkyu_image.jpeg', cv2_img)
 
-
 	# for img_name in unknown_imgs:
 	# 	img = face_recognition.load_image_file(unknown_folder+'/'+img_name)
 	# 	unknown_encoding = face_recognition.face_encodings(img)[0]

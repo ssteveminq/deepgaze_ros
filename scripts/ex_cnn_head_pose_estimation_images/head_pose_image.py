@@ -23,6 +23,7 @@ from deepgaze.head_pose_estimation import CnnHeadPoseEstimator
 class Head_Dectectors(object):
     def __init__(self, wait=0.0):
         sess = tf.Session() #Launch the graph in a session.
+        self.settings = termios.tcgetattr(sys.stdin)
         self.my_head_pose_estimator = CnnHeadPoseEstimator(sess) #Head pose estimation object
         self.roll_config_filepath = "/home/mk/hsr/attention_ws/src/interaction_functions/deepgaze_ros/etc/tensorflow/head_pose/roll/cnn_cccdd_30k.tf"
         self.pitch_config_filepath = "/home/mk/hsr/attention_ws/src/interaction_functions/deepgaze_ros/etc/tensorflow/head_pose/pitch/cnn_cccdd_30k.tf"
@@ -32,9 +33,10 @@ class Head_Dectectors(object):
         self.my_head_pose_estimator.load_pitch_variables(self.pitch_config_filepath) 
         self.my_head_pose_estimator.load_yaw_variables(self.yaw_config_filepath) 
 
-        image_topic = "/hsrb/head_rgbd_sensor/rgb/image_raw"
+        image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
 	rospy.Subscriber(image_topic, Image, self.image_callback)
         self.bridge = CvBridge()
+        cv2.startWindowThread()
         # self.cv2_img = cv2.imread()
         # self.image = cv2.imread(file_name)
 	
@@ -51,17 +53,28 @@ class Head_Dectectors(object):
             print("")
 
     def image_callback(self,msg):
-        print('image_callback: ')
+        # print('image_callback: ')
         # rospy.loginfo("image is of type: "+str(type(msg)))
-        self.cv2_img   = self.bridge.imgmsg_to_cv2(msg,"bgr8")
-        height, width, channels = self.cv2_img.shape
-        print height, width, channels 
-        cv2.imshow("image_window", self.cv2_img)
+        try:
+            cv2_img   = self.bridge.imgmsg_to_cv2(msg,"bgr8")
+        # height, width, channels = self.cv2_img.shape
+        # print height, width, channels 
+            # cv2.startWindowThread()
+            # cv2.imshow("image_window", cv2_img)
+            # cv2.waitKey(30)
+            resize_dim= (480,480)
+            resized_img = cv2.resize(cv2_img,resize_dim,interpolation=cv2.INTER_AREA)
+            cv2.imshow("image_window", resized_img)
+            cv2.waitKey(30)
+            # roll = self.my_head_pose_estimator.return_roll(cv2_img)  # Evaluate the roll angle using a CNN
 
-        # roll = self.my_head_pose_estimator.return_roll(self.cv2_img)  # Evaluate the roll angle using a CNN
-        # pitch = self.my_head_pose_estimator.return_pitch(cv2_img)  # Evaluate the pitch angle using a CNN
-        # yaw = self.my_head_pose_estimator.return_yaw(cv2_img)  # Evaluate the yaw angle using a CNN
-        # print("Estimated [roll, pitch, yaw] ..... [" + str(roll[0,0,0]) + "," + str(pitch[0,0,0]) + "," + str(yaw[0,0,0])  + "]")
+        except CvBridgeError, e:
+            print(e)
+
+        roll = self.my_head_pose_estimator.return_roll(resized_img)  # Evaluate the roll angle using a CNN
+        pitch = self.my_head_pose_estimator.return_pitch(resized_img)  # Evaluate the pitch angle using a CNN
+        yaw = self.my_head_pose_estimator.return_yaw(resized_img)  # Evaluate the yaw angle using a CNN
+        print("Estimated [roll, pitch, yaw] ..... [" + str(roll[0,0,0]) + "," + str(pitch[0,0,0]) + "," + str(yaw[0,0,0])  + "]")
 
     def listener(self,wait=0.0):
         rospy.spin() 
@@ -69,6 +82,6 @@ class Head_Dectectors(object):
 if __name__ == '__main__':
         rospy.init_node('head_orientation_estimation_test')
 	# print("Initialize node")
-	Head_manager = Head_Dectectors()
+        Head_manager = Head_Dectectors(sys.argv[1] if len(sys.argv) >1 else 0.0)
 	Head_manager.listener()	
 

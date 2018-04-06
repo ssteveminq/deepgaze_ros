@@ -17,9 +17,10 @@ my_head_pose_estimator = CnnHeadPoseEstimator(sess) #Head pose estimation object
 my_head_pose_estimator.load_roll_variables("../../etc/tensorflow/head_pose/roll/cnn_cccdd_30k.tf")
 
 for i in range(1,9):
-    file_name = str(i) + ".jpg"
-    print("Processing image ..... " + file_name)
-    image = cv2.imread(file_name) #Read the image with OpenCV
+    # file_name = str(i) + ".jpg"
+    filepath = "/home/mk/hsr/attention_ws/src/interaction_functions/deepgaze_ros/scripts/ex_cnn_head_pose_estimation_images/2.jpg"
+    # print("Processing image ..... " + file_name)
+    image = cv2.imread(filepath) #Read the image with OpenCV
     roll = my_head_pose_estimator.return_roll(image) #Evaluate the roll angle using a CNN
     print("Estimated roll ..... " + str(roll[0,0,0]))
     print("")
