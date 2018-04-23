@@ -44,6 +44,7 @@ from deepgaze.motion_tracking import ParticleFilter
 class ObjectTracker(object):
     def __init__(self, wait=0.0):
 
+        # self.USE_WEBCAM =True
         template = cv2.imread('north.png') #Load the image
         self.my_mask_analyser = BinaryMaskAnalyser()
         self.my_back_detector = BackProjectionColorDetector()
@@ -54,7 +55,8 @@ class ObjectTracker(object):
         # self.my_particle = ParticleFilter(640, 480, tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
 
-        image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
+        # image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
+        image_topic = "/camera/rgb/image_rect_color"
 	rospy.Subscriber(image_topic, Image, self.image_callback)
         self.bridge = CvBridge()
 	
