@@ -33,7 +33,7 @@ from deepgaze.motion_tracking import ParticleFilter
 #In this case you have to provide a valid tamplate, it can be
 #a solid color you want to track or a frame containint your face.
 #Substitute the frame to the default template.png.
-USE_WEBCAM = True
+USE_WEBCAM = False
 
 template = cv2.imread('template.png') #Load the image
 if(USE_WEBCAM == False):

@@ -5,34 +5,54 @@
 !_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
 !_TAG_PROGRAM_VERSION	5.9~svn20110310	//
 ALL_POINTS	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^ALL_POINTS = list(range(0,68)) #Used for debug only$/;"	v
+ALL_POINTS	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^ALL_POINTS = list(range(0,68)) #Used for debug only$/;"	v
+DEBUG	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^DEBUG = True $/;"	v
 FaceDectectors	scripts/test_ros	/^class FaceDectectors(object):$/;"	c
 Face_manager	scripts/test_ros	/^	Face_manager = FaceDectectors(sys.argv[1] if len(sys.argv) > 1 else 0.0)$/;"	v	class:FaceDectectors
 Head_Dectectors	scripts/head_pose_estimation/head_pose_image.py	/^class Head_Dectectors(object):$/;"	c
+ObjectTracker	scripts/object_tracking/multi_templte_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/particle_object_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/webcam_object_tracker.py	/^class ObjectTracker(object):$/;"	c
 P3D_FRONTAL_BREADTH_LEFT	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_FRONTAL_BREADTH_LEFT = numpy.float32([-20.0, 56.1, 10.0]) #26$/;"	v
+P3D_FRONTAL_BREADTH_LEFT	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_FRONTAL_BREADTH_LEFT = numpy.float32([-20.0, 56.1, 10.0]) #26$/;"	v
 P3D_FRONTAL_BREADTH_RIGHT	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_FRONTAL_BREADTH_RIGHT = numpy.float32([-20.0, -56.1, 10.0]) #17$/;"	v
+P3D_FRONTAL_BREADTH_RIGHT	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_FRONTAL_BREADTH_RIGHT = numpy.float32([-20.0, -56.1, 10.0]) #17$/;"	v
 P3D_GONION_LEFT	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_GONION_LEFT = numpy.float32([-110.0, 77.5, -85.0]) #12$/;"	v
+P3D_GONION_LEFT	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_GONION_LEFT = numpy.float32([-110.0, 77.5, -85.0]) #12$/;"	v
 P3D_GONION_RIGHT	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_GONION_RIGHT = numpy.float32([-110.0, -77.5, -85.0]) #4$/;"	v
+P3D_GONION_RIGHT	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_GONION_RIGHT = numpy.float32([-110.0, -77.5, -85.0]) #4$/;"	v
 P3D_LEFT_EYE	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_LEFT_EYE = numpy.float32([-20.0, 65.5,-5.0]) #45$/;"	v
+P3D_LEFT_EYE	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_LEFT_EYE = numpy.float32([-20.0, 65.5,-5.0]) #45$/;"	v
 P3D_LEFT_SIDE	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_LEFT_SIDE = numpy.float32([-100.0, 77.5, -5.0]) #16$/;"	v
+P3D_LEFT_SIDE	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_LEFT_SIDE = numpy.float32([-100.0, 77.5, -5.0]) #16$/;"	v
 P3D_LEFT_TEAR	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_LEFT_TEAR = numpy.float32([-10.0, 40.5,-5.0]) #42$/;"	v
+P3D_LEFT_TEAR	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_LEFT_TEAR = numpy.float32([-10.0, 40.5,-5.0]) #42$/;"	v
 P3D_MENTON	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_MENTON = numpy.float32([0.0, 0.0, -122.7]) #8$/;"	v
+P3D_MENTON	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_MENTON = numpy.float32([0.0, 0.0, -122.7]) #8$/;"	v
 P3D_NOSE	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_NOSE = numpy.float32([21.1, 0.0, -48.0]) #30$/;"	v
+P3D_NOSE	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_NOSE = numpy.float32([21.1, 0.0, -48.0]) #30$/;"	v
 P3D_RIGHT_EYE	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_RIGHT_EYE = numpy.float32([-20.0, -65.5,-5.0]) #36$/;"	v
+P3D_RIGHT_EYE	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_RIGHT_EYE = numpy.float32([-20.0, -65.5,-5.0]) #36$/;"	v
 P3D_RIGHT_SIDE	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_RIGHT_SIDE = numpy.float32([-100.0, -77.5, -5.0]) #0$/;"	v
+P3D_RIGHT_SIDE	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_RIGHT_SIDE = numpy.float32([-100.0, -77.5, -5.0]) #0$/;"	v
 P3D_RIGHT_TEAR	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_RIGHT_TEAR = numpy.float32([-10.0, -40.5,-5.0]) #39$/;"	v
+P3D_RIGHT_TEAR	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_RIGHT_TEAR = numpy.float32([-10.0, -40.5,-5.0]) #39$/;"	v
 P3D_SELLION	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_SELLION = numpy.float32([0.0, 0.0, 0.0]) #27$/;"	v
+P3D_SELLION	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_SELLION = numpy.float32([0.0, 0.0, 0.0]) #27$/;"	v
 P3D_STOMION	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_STOMION = numpy.float32([10.0, 0.0, -75.0]) #62$/;"	v
+P3D_STOMION	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_STOMION = numpy.float32([10.0, 0.0, -75.0]) #62$/;"	v
 P3D_SUB_NOSE	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_SUB_NOSE = numpy.float32([5.0, 0.0, -52.0]) #33$/;"	v
+P3D_SUB_NOSE	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_SUB_NOSE = numpy.float32([5.0, 0.0, -52.0]) #33$/;"	v
 PRINT_TIME	scripts/fasa_saliency_map/saliecy_map.py	/^PRINT_TIME = False$/;"	v
 RESOLUTION_HEIGHT	scripts/fasa_saliency_map/saliecy_map.py	/^RESOLUTION_HEIGHT = 480$/;"	v
 RESOLUTION_WIDTH	scripts/fasa_saliency_map/saliecy_map.py	/^RESOLUTION_WIDTH = 640$/;"	v
 SaliencyManager	scripts/fasa_saliency_map/saliecy_map.py	/^class SaliencyManager(object):$/;"	c
 TRACKED_POINTS	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^TRACKED_POINTS = (0, 4, 8, 12, 16, 17, 26, 27, 30, 33, 36, 39, 42, 45, 62)$/;"	v
-USE_WEBCAM	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^USE_WEBCAM = True$/;"	v
+TRACKED_POINTS	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^TRACKED_POINTS = (0, 4, 8, 12, 16, 17, 26, 27, 30, 33, 36, 39, 42, 45, 62)$/;"	v
+USE_WEBCAM	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^USE_WEBCAM = False$/;"	v
 __init__	scripts/fasa_saliency_map/saliecy_map.py	/^    def __init__(self, wait=0.0):$/;"	m	class:SaliencyManager
 __init__	scripts/head_pose_estimation/head_pose_image.py	/^    def __init__(self, wait=0.0):$/;"	m	class:Head_Dectectors
+__init__	scripts/object_tracking/multi_templte_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/object_tracking/particle_object_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/object_tracking/webcam_object_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/test_ros	/^	def __init__(self, wait=0.0):$/;"	m	class:FaceDectectors
@@ -52,6 +72,7 @@ image	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.
 image	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^    image = cv2.imread(filepath) #Read the image with OpenCV$/;"	v
 image_callback	scripts/fasa_saliency_map/saliecy_map.py	/^    def image_callback(self,msg):$/;"	m	class:SaliencyManager
 image_callback	scripts/head_pose_estimation/head_pose_image.py	/^    def image_callback(self,msg):$/;"	m	class:Head_Dectectors
+image_callback	scripts/object_tracking/multi_templte_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
 image_callback	scripts/object_tracking/particle_object_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
 image_callback	scripts/object_tracking/webcam_object_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
 image_callback	scripts/test_ros	/^	def image_callback(self,msg):$/;"	m	class:FaceDectectors
@@ -59,11 +80,13 @@ key_callback	scripts/test_ros	/^	def key_callback(self,msg):		#"p"$/;"	m	class:F
 leg	scripts/head_pose_estimation/data_anal.py	/^leg = ax1.legend()$/;"	v
 listener	scripts/fasa_saliency_map/saliecy_map.py	/^    def listener(self,wait=0.0):$/;"	m	class:SaliencyManager
 listener	scripts/head_pose_estimation/head_pose_image.py	/^    def listener(self,wait=0.0):$/;"	m	class:Head_Dectectors
+listener	scripts/object_tracking/multi_templte_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
 listener	scripts/object_tracking/particle_object_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
 listener	scripts/object_tracking/webcam_object_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
 listener	scripts/test_ros	/^	def listener(self,wait=0.0):$/;"	m	class:FaceDectectors
 main	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^def main():$/;"	f
 main	scripts/fasa_saliency_map/ex_fasa_saliency_map_images.py	/^def main():$/;"	f
+main	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^def main():$/;"	f
 moveBindings	scripts/test_ros	/^moveBindings = {$/;"	v
 my_back_detector	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^my_back_detector = BackProjectionColorDetector()$/;"	v
 my_head_pose_estimator	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^my_head_pose_estimator = CnnHeadPoseEstimator(sess) #Head pose estimation object$/;"	v
