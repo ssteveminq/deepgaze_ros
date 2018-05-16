@@ -44,7 +44,7 @@ from deepgaze.motion_tracking import ParticleFilter
 class ObjectTracker(object):
     def __init__(self, wait=0.0):
 
-        template = cv2.imread('north.png') #Load the image
+        template = cv2.imread('orange.png') #Load the image
         self.my_mask_analyser = BinaryMaskAnalyser()
         self.my_back_detector = BackProjectionColorDetector()
         self.my_back_detector.setTemplate(template) #Set the template 
@@ -54,7 +54,8 @@ class ObjectTracker(object):
         # self.my_particle = ParticleFilter(640, 480, tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
 
-        image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
+        # image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
+        image_topic = "/camera/rgb/image_rect_color"
 	rospy.Subscriber(image_topic, Image, self.image_callback)
         self.bridge = CvBridge()
 	
@@ -102,8 +103,9 @@ class ObjectTracker(object):
 
             cv2.imshow("image_window", frame)
             cv2.imshow('Mask', frame_mask) #show on window
-            # cv2.waitKey(3)
-            if cv2.waitKey(3) & 0xFF == ord('q'): break #Exit when Q is pressed
+            cv2.waitKey(3)
+            # if cv2.waitKey(3) & 0xFF == ord('q'):
+                # break #Exit when Q is pressed
 
         except CvBridgeError, e:
             print(e)
