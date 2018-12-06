@@ -55,7 +55,7 @@ class ObjectTracker(object):
         self.noise_probability = 0.10 #in range [0, 1.0]
 
         # image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
-        image_topic = "/camera/rgb/image_rect_color"
+        image_topic = "/camera/rgb/image_color"
 	rospy.Subscriber(image_topic, Image, self.image_callback)
         self.bridge = CvBridge()
 	

@@ -6,14 +6,14 @@
     <!-- Virtual Link -->
     <inertial>
       <mass value="0.1"/>
-      <origin rpy="0 0 0" xyz="0 1.1 1.5"/>
+      <origin rpy="0 0 0" xyz="0 1.1 1.0"/>
       <inertia ixx="8.33333333333e-05" ixy="0.0" ixz="0.0" iyy="8.33333333333e-05" iyz="0.0" izz="0.000125"/>
     </inertial>
   </link>
   
 
   <joint name="kinect_location" type="fixed">
-    <origin rpy="0 0.0261799 0" xyz="0.2159 0 0.8"/>
+    <origin rpy="0.0 0.5 -0.64" xyz="0.0 0 1.5"/>
     <axis xyz="0 0 1"/>
     <parent link="world"/>
     <child link="camera_link"/>

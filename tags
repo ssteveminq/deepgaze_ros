@@ -10,7 +10,7 @@ DEBUG	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^DEBUG
 FaceDectectors	scripts/test_ros	/^class FaceDectectors(object):$/;"	c
 Face_manager	scripts/test_ros	/^	Face_manager = FaceDectectors(sys.argv[1] if len(sys.argv) > 1 else 0.0)$/;"	v	class:FaceDectectors
 Head_Dectectors	scripts/head_pose_estimation/head_pose_image.py	/^class Head_Dectectors(object):$/;"	c
-ObjectTracker	scripts/object_tracking/multi_templte_tracker.py	/^class ObjectTracker(object):$/;"	c
+ObjectTracker	scripts/object_tracking/multi-template_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/particle_object_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/webcam_object_tracker.py	/^class ObjectTracker(object):$/;"	c
 P3D_FRONTAL_BREADTH_LEFT	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_FRONTAL_BREADTH_LEFT = numpy.float32([-20.0, 56.1, 10.0]) #26$/;"	v
@@ -52,7 +52,7 @@ TRACKED_POINTS	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.p
 USE_WEBCAM	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^USE_WEBCAM = False$/;"	v
 __init__	scripts/fasa_saliency_map/saliecy_map.py	/^    def __init__(self, wait=0.0):$/;"	m	class:SaliencyManager
 __init__	scripts/head_pose_estimation/head_pose_image.py	/^    def __init__(self, wait=0.0):$/;"	m	class:Head_Dectectors
-__init__	scripts/object_tracking/multi_templte_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
+__init__	scripts/object_tracking/multi-template_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/object_tracking/particle_object_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/object_tracking/webcam_object_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/test_ros	/^	def __init__(self, wait=0.0):$/;"	m	class:FaceDectectors
@@ -72,7 +72,7 @@ image	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.
 image	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^    image = cv2.imread(filepath) #Read the image with OpenCV$/;"	v
 image_callback	scripts/fasa_saliency_map/saliecy_map.py	/^    def image_callback(self,msg):$/;"	m	class:SaliencyManager
 image_callback	scripts/head_pose_estimation/head_pose_image.py	/^    def image_callback(self,msg):$/;"	m	class:Head_Dectectors
-image_callback	scripts/object_tracking/multi_templte_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
+image_callback	scripts/object_tracking/multi-template_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
 image_callback	scripts/object_tracking/particle_object_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
 image_callback	scripts/object_tracking/webcam_object_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
 image_callback	scripts/test_ros	/^	def image_callback(self,msg):$/;"	m	class:FaceDectectors
@@ -80,7 +80,7 @@ key_callback	scripts/test_ros	/^	def key_callback(self,msg):		#"p"$/;"	m	class:F
 leg	scripts/head_pose_estimation/data_anal.py	/^leg = ax1.legend()$/;"	v
 listener	scripts/fasa_saliency_map/saliecy_map.py	/^    def listener(self,wait=0.0):$/;"	m	class:SaliencyManager
 listener	scripts/head_pose_estimation/head_pose_image.py	/^    def listener(self,wait=0.0):$/;"	m	class:Head_Dectectors
-listener	scripts/object_tracking/multi_templte_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
+listener	scripts/object_tracking/multi-template_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
 listener	scripts/object_tracking/particle_object_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
 listener	scripts/object_tracking/webcam_object_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
 listener	scripts/test_ros	/^	def listener(self,wait=0.0):$/;"	m	class:FaceDectectors
