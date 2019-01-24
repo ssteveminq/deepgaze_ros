@@ -10,9 +10,13 @@ find_package(catkin
     message_generation
     control_msgs
     actionlib_msgs
-    )
+    pcl_ros
+    pcl_conversions
+)
 
- add_service_files(
+find_package(PCL 1.7 REQUIRED)
+
+add_service_files(
    FILES
    gaze_recognition_srv.srv
  )

@@ -10,6 +10,6 @@
         <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
         <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
     </group>
-	<!--<node name="rviz" pkg="rviz" type="rviz" args="-d $(find deepgaze_ros)/config/kinect.rviz" required="true" />-->
+    <!--<node name="rviz" pkg="rviz" type="rviz" args="-d $(find deepgaze_ros)/config/kinect.rviz" required="true" />-->
 
 </launch>
