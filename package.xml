@@ -11,6 +11,7 @@
   <depend>villa_rude_carnie_ros</depend>
   <depend>std_msgs</depend>
   <depend>actionlib_msgs</depend>
+  <depend>people_msgs</depend>
   <depend>keyboard</depend>
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>

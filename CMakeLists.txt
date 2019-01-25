@@ -12,6 +12,7 @@ find_package(catkin
     actionlib_msgs
     pcl_ros
     pcl_conversions
+    people_msgs
 )
 
 find_package(PCL 1.7 REQUIRED)
@@ -35,5 +36,6 @@ generate_messages(
 
 catkin_package(
   CATKIN_DEPENDS actionlib_msgs
+  people_msgs
 )
 

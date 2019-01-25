@@ -6,10 +6,12 @@
 !_TAG_PROGRAM_VERSION	5.9~svn20110310	//
 ALL_POINTS	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^ALL_POINTS = list(range(0,68)) #Used for debug only$/;"	v
 ALL_POINTS	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^ALL_POINTS = list(range(0,68)) #Used for debug only$/;"	v
+ArTracker	scripts/person_tracking/ar_tracker.py	/^class ArTracker(object):$/;"	c
 DEBUG	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^DEBUG = True $/;"	v
 FaceDectectors	scripts/test_ros	/^class FaceDectectors(object):$/;"	c
 Face_manager	scripts/test_ros	/^	Face_manager = FaceDectectors(sys.argv[1] if len(sys.argv) > 1 else 0.0)$/;"	v	class:FaceDectectors
 Head_Dectectors	scripts/head_pose_estimation/head_pose_image.py	/^class Head_Dectectors(object):$/;"	c
+N	scripts/pcl_practice/pcl_visualtest.py	/^N=300$/;"	v
 ObjectTracker	scripts/object_tracking/multi-template_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/particle_object_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/webcam_object_tracker.py	/^class ObjectTracker(object):$/;"	c
@@ -45,6 +47,7 @@ P3D_SUB_NOSE	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^P3D_SUB_NOSE = 
 P3D_SUB_NOSE	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^P3D_SUB_NOSE = numpy.float32([5.0, 0.0, -52.0]) #33$/;"	v
 PRINT_TIME	scripts/fasa_saliency_map/saliecy_map.py	/^PRINT_TIME = False$/;"	v
 PersonTracker	scripts/person_tracking/particle_person_tracker.py	/^class PersonTracker(object):$/;"	c
+PositionMeasurementCb	scripts/person_tracking/ar_tracker.py	/^    def PositionMeasurementCb(self,msg):$/;"	m	class:ArTracker
 RESOLUTION_HEIGHT	scripts/fasa_saliency_map/saliecy_map.py	/^RESOLUTION_HEIGHT = 480$/;"	v
 RESOLUTION_WIDTH	scripts/fasa_saliency_map/saliecy_map.py	/^RESOLUTION_WIDTH = 640$/;"	v
 SaliencyManager	scripts/fasa_saliency_map/saliecy_map.py	/^class SaliencyManager(object):$/;"	c
@@ -56,18 +59,30 @@ __init__	scripts/head_pose_estimation/head_pose_image.py	/^    def __init__(self
 __init__	scripts/object_tracking/multi-template_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/object_tracking/particle_object_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/object_tracking/webcam_object_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
+__init__	scripts/person_tracking/ar_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ArTracker
 __init__	scripts/person_tracking/particle_person_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:PersonTracker
 __init__	scripts/test_ros	/^	def __init__(self, wait=0.0):$/;"	m	class:FaceDectectors
 ax1	scripts/head_pose_estimation/data_anal.py	/^ax1 = fig.add_subplot(111)$/;"	v
+cloud_points	scripts/pcl_practice/pcl_visualtest.py	/^    cloud_points = [[1.0, 1.0, 0.0],[1.0, 2.0, 0.0]]$/;"	v
+cloud_sets	scripts/pcl_practice/pcl_visualtest.py	/^        cloud_sets=[]$/;"	v
+cloud_sets	scripts/pcl_practice/pcl_visualtest.py	/^    cloud_sets=[]$/;"	v
+cloud_sets	scripts/pcl_practice/pcl_visualtest.py	/^cloud_sets=[]$/;"	v
 coin	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^        coin = np.random.uniform()$/;"	v
+count	scripts/pcl_practice/pcl_visualtest.py	/^    count=0$/;"	v
 crop_face	scripts/test_ros	/^	def crop_face(self,image_data):$/;"	m	class:FaceDectectors
 data	scripts/head_pose_estimation/data_anal.py	/^data = np.genfromtxt('test_roll.csv', delimiter=',', skip_header=10,$/;"	v
+depth	scripts/pcl_practice/pcl_visualtest.py	/^depth =10$/;"	v
+estimate	scripts/pcl_practice/pcl_visualtest.py	/^def estimate():$/;"	f
 fig	scripts/head_pose_estimation/data_anal.py	/^fig = plt.figure()$/;"	v
 file_name	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    file_name = str(i) + ".jpg"$/;"	v
 file_name	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch.py	/^    file_name = str(i) + ".jpg"$/;"	v
 filepath	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^    filepath = "\/home\/mk\/hsr\/attention_ws\/src\/interaction_functions\/deepgaze_ros\/scripts\/ex_cnn_head_pose_estimation_images\/2.jpg"$/;"	v
 fourcc	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^fourcc = cv2.VideoWriter_fourcc(*'XVID')$/;"	v
 frame_mask	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^    frame_mask = my_back_detector.returnMask(frame, morph_opening=True, blur=True, kernel_size=5, iterations=2)$/;"	v
+header	scripts/pcl_practice/pcl_visualtest.py	/^        header = std_msgs.msg.Header()$/;"	v
+header	scripts/pcl_practice/pcl_visualtest.py	/^    header = std_msgs.msg.Header()$/;"	v
+header	scripts/pcl_practice/pcl_visualtest.py	/^header = std_msgs.msg.Header()$/;"	v
+height	scripts/pcl_practice/pcl_visualtest.py	/^height=10$/;"	v
 image	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    image = cv2.imread(file_name) #Read the image with OpenCV$/;"	v
 image	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch.py	/^    image = cv2.imread(file_name) #Read the image with OpenCV$/;"	v
 image	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.py	/^image = cv2.imread("1.jpg") #Read the image with OpenCV$/;"	v
@@ -85,6 +100,7 @@ listener	scripts/head_pose_estimation/head_pose_image.py	/^    def listener(self
 listener	scripts/object_tracking/multi-template_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
 listener	scripts/object_tracking/particle_object_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
 listener	scripts/object_tracking/webcam_object_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
+listener	scripts/person_tracking/ar_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ArTracker
 listener	scripts/person_tracking/particle_person_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:PersonTracker
 listener	scripts/test_ros	/^	def listener(self,wait=0.0):$/;"	m	class:FaceDectectors
 main	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^def main():$/;"	f
@@ -100,26 +116,42 @@ my_mask_analyser	scripts/object_tracking/ex_particle_filter_object_tracking_vide
 my_particle	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^my_particle = ParticleFilter(1920, 1080, tot_particles)$/;"	v
 noise_probability	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^noise_probability = 0.15 #in range [0, 1.0]$/;"	v
 out	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^out = cv2.VideoWriter(".\/cows_output.avi", fourcc, 25.0, (1920,1080))$/;"	v
+particles	scripts/pcl_practice/pcl_visualtest.py	/^particles = np.empty((N,2))$/;"	v
+pcl_pub	scripts/pcl_practice/pcl_visualtest.py	/^    pcl_pub = rospy.Publisher("\/my_pcl_topic", PointCloud2)$/;"	v
 pitch	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    pitch = my_head_pose_estimator.return_pitch(image)  # Evaluate the pitch angle using a CNN$/;"	v
 pitch	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch.py	/^    pitch = my_head_pose_estimator.return_pitch(image) #Evaluate the pitch angle using a CNN$/;"	v
 pitch	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.py	/^pitch = my_head_pose_estimator.return_pitch(image) #Evaluate the pitch angle using a CNN$/;"	v
 posearray_callback	scripts/person_tracking/particle_person_tracker.py	/^    def posearray_callback(self,msg):$/;"	m	class:PersonTracker
+predict	scripts/pcl_practice/pcl_visualtest.py	/^def predict(x_veloity, y_velocity, std):$/;"	f
 read_datafile	scripts/head_pose_estimation/data_anal.py	/^def read_datafile(file_name):$/;"	f
 roll	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    roll = my_head_pose_estimator.return_roll(image)  # Evaluate the roll angle using a CNN$/;"	v
 roll	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^    roll = my_head_pose_estimator.return_roll(image) #Evaluate the roll angle using a CNN$/;"	v
+scaled_polygon_pcl	scripts/pcl_practice/pcl_visualtest.py	/^        scaled_polygon_pcl = pcl2.create_cloud_xyz32(header, cloud_sets)$/;"	v
+scaled_polygon_pcl	scripts/pcl_practice/pcl_visualtest.py	/^    scaled_polygon_pcl = pcl2.create_cloud_xyz32(header, cloud_sets)$/;"	v
+scaled_polygon_pcl	scripts/pcl_practice/pcl_visualtest.py	/^scaled_polygon_pcl = pcl2.create_cloud_xyz32(header, cloud_sets)$/;"	v
 sess	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^sess = tf.Session() #Launch the graph in a session.$/;"	v
 sess	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch.py	/^sess = tf.Session() #Launch the graph in a session.$/;"	v
 sess	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.py	/^sess = tf.Session() #Launch the graph in a session.$/;"	v
 sess	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^sess = tf.Session() #Launch the graph in a session.$/;"	v
 std	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^std = 25 $/;"	v
+std	scripts/pcl_practice/pcl_visualtest.py	/^std=0.01$/;"	v
 template	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^template = cv2.imread('template.png') #Load the image$/;"	v
 test_local_images	scripts/head_pose_estimation/head_pose_image.py	/^    def test_local_images(self): $/;"	m	class:Head_Dectectors
 tot_particles	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^tot_particles = 3000$/;"	v
+update	scripts/pcl_practice/pcl_visualtest.py	/^def update(x,y):$/;"	f
+updatepcl	scripts/pcl_practice/pcl_visualtest.py	/^def updatepcl():$/;"	f
 video_capture	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^    video_capture = cv2.VideoCapture(".\/cows.avi")$/;"	v
 video_capture	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^    video_capture = cv2.VideoCapture(0) #Open the webcam$/;"	v
+visualizeparticles	scripts/person_tracking/ar_tracker.py	/^    def visualizeparticles(self):$/;"	m	class:ArTracker
+weights	scripts/pcl_practice/pcl_visualtest.py	/^    weights = np.array([1.0\/N]*N)$/;"	v
+width	scripts/pcl_practice/pcl_visualtest.py	/^width =10$/;"	v
 x_noise	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^            x_noise = 0$/;"	v
 x_noise	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^            x_noise = int(np.random.uniform(-300, 300))$/;"	v
+x_noise	scripts/pcl_practice/pcl_visualtest.py	/^            x_noise=np.random.uniform(0,1)$/;"	v
+x_velocity	scripts/pcl_practice/pcl_visualtest.py	/^x_velocity=0.02$/;"	v
+x_velocity	scripts/pcl_practice/pcl_visualtest.py	/^x_velocity=0.04$/;"	v
 y_noise	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^            y_noise = 0$/;"	v
 y_noise	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^            y_noise = int(np.random.uniform(-300, 300))$/;"	v
+y_noise	scripts/pcl_practice/pcl_visualtest.py	/^            y_noise=np.random.uniform(0,1)$/;"	v
 yaw	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    yaw = my_head_pose_estimator.return_yaw(image)  # Evaluate the yaw angle using a CNN$/;"	v
 yaw	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.py	/^yaw = my_head_pose_estimator.return_yaw(image) #Evaluate the yaw angle using a CNN$/;"	v
