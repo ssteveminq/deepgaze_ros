@@ -54,7 +54,7 @@ class ArTracker(object):
 
         # template = cv2.imread('orange.png') #Load the image
         tot_particles =300
-        self.std=0.15;
+        self.std=0.05;
         self.my_particle = ParticleFilter(20, 20, tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
 
@@ -65,8 +65,44 @@ class ArTracker(object):
         self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
 
         # self.bridge = CvBridge()
+    def Estimate_Filter(self):
+        #Predict the position of the target
+        self.my_particle.predict(x_velocity=0, y_velocity=0, std=self.std)
+
+        #Drawing the particles.
+        # self.visualizeparticles()
+        # self.my_particle.drawParticles(frame)
+
+        #Estimate the next position using the internal model
+        x_estimated, y_estimated, _, _ = self.my_particle.estimate()
+
+        #publish 
+        est_pose=PoseStamped()
+        est_pose.pose=Pose(Point(x_estimated,y_estimated,0.5),Quaternion(0,0,0,1))
+        est_pose.header.stamp=rospy.Time.now()
+        est_pose.header.frame_id='map'
+
+        self.estimated_point_pub.publish(est_pose)
+        current_entropy=self.my_particle.get_entropy()
+        rospy.loginfo("estimated particle : "+str(current_entropy))
+        # cv2.circle(frame, (x_estimated, y_estimated), 3, [0,255,0], 5) #GREEN dot
+
+ 
+
+    def Update_Measurement_Filter(self,x_center, y_center):
+        #Update the filter with the last measurements
+        
+        self.my_particle.update(x_center, y_center)
+
+        #Resample the particles
+        self.my_particle.resample()
+        current_entropy=self.my_particle.get_entropy()
+        rospy.loginfo("resampledparticle : "+str(current_entropy))
+
+
     def PositionMeasurementCb(self,msg):
         #recieve poses array from measurement
+
         poses_array=msg.people
         detected_people=len(poses_array)
         if(detected_people==0):
@@ -95,36 +131,12 @@ class ArTracker(object):
                 # z_noise = 0
         x_center += x_noise
         y_center += y_noise
-            # z_center += z_noise
+        # z_center += z_noise
+        
+        self.Estimate_Filter()
+        self.Update_Measurement_Filter(x_center,y_center)
 
-        #Predict the position of the target
-        self.my_particle.predict(x_velocity=0, y_velocity=0, std=self.std)
-
-        #Drawing the particles.
-        # self.visualizeparticles()
-        # self.my_particle.drawParticles(frame)
-
-        #Estimate the next position using the internal model
-        x_estimated, y_estimated, _, _ = self.my_particle.estimate()
-
-        #publish 
-        est_pose=PoseStamped()
-        est_pose.pose=Pose(Point(x_estimated,y_estimated,0.5),Quaternion(0,0,0,1))
-        est_pose.header.stamp=rospy.Time.now()
-        est_pose.header.frame_id='map'
-
-        self.estimated_point_pub.publish(est_pose)
-        # cv2.circle(frame, (x_estimated, y_estimated), 3, [0,255,0], 5) #GREEN dot
-
-        #Update the filter with the last measurements
-        self.my_particle.update(x_center, y_center)
-
-        #Resample the particles
-        self.my_particle.resample()
-        current_entropy=self.my_particle.get_entropy()
-        rospy.loginfo(current_entropy)
-
-
+   
 
     def visualizeparticles(self):
         cloud_sets=[]
@@ -144,6 +156,7 @@ class ArTracker(object):
     def listener(self,wait=0.0):
         # rospy.spin()
         while not rospy.is_shutdown():
+            self.Estimate_Filter()
             self.visualizeparticles()
             rospy.Rate(3).sleep()
 
