@@ -24,6 +24,7 @@ import cv2
 import roslib
 import sys
 import rospy
+import random
 import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
 import select, termios, tty
@@ -32,7 +33,10 @@ from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pcl2
 
 from geometry_msgs.msg import PoseArray
+from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Point
+from geometry_msgs.msg import Quaternion
 from people_msgs.msg import PositionMeasurementArray
 from std_msgs.msg import String
 import std_msgs.msg
@@ -50,7 +54,7 @@ class ArTracker(object):
 
         # template = cv2.imread('orange.png') #Load the image
         tot_particles =300
-        self.std=0.05;
+        self.std=0.15;
         self.my_particle = ParticleFilter(20, 20, tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
 
@@ -58,16 +62,18 @@ class ArTracker(object):
 	rospy.Subscriber(posearray_topic, PositionMeasurementArray, self.PositionMeasurementCb)
 
         self.pcl_pub=rospy.Publisher("/particle_samples",PointCloud2,queue_size=50)
+        self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
 
         # self.bridge = CvBridge()
     def PositionMeasurementCb(self,msg):
         #recieve poses array from measurement
         poses_array=msg.people
         detected_people=len(poses_array)
-        if(detected_people>0):
-            print "person detected"
-        else:
+        if(detected_people==0):
             return
+        else:
+            # rospy.loginfo("person detected")
+            detected_=True
 
         x_center=poses_array[0].pos.x
         y_center=poses_array[0].pos.y
@@ -80,8 +86,8 @@ class ArTracker(object):
         #add noises
         coin = np.random.uniform()
         if(coin >= 1.0-self.noise_probability): 
-            x_noise = float(np.random.uniform(-0.05, 0.05))
-            y_noise = float(np.random.uniform(-0.05, 0.05))
+            x_noise = float(np.random.uniform(-0.15, 0.15))
+            y_noise = float(np.random.uniform(-0.15, 0.15))
                 # z_noise = int(np.random.uniform(-300, 300))
         else: 
             x_noise = 0
@@ -95,11 +101,19 @@ class ArTracker(object):
         self.my_particle.predict(x_velocity=0, y_velocity=0, std=self.std)
 
         #Drawing the particles.
-        self.visualizeparticles()
+        # self.visualizeparticles()
         # self.my_particle.drawParticles(frame)
 
         #Estimate the next position using the internal model
         x_estimated, y_estimated, _, _ = self.my_particle.estimate()
+
+        #publish 
+        est_pose=PoseStamped()
+        est_pose.pose=Pose(Point(x_estimated,y_estimated,0.5),Quaternion(0,0,0,1))
+        est_pose.header.stamp=rospy.Time.now()
+        est_pose.header.frame_id='map'
+
+        self.estimated_point_pub.publish(est_pose)
         # cv2.circle(frame, (x_estimated, y_estimated), 3, [0,255,0], 5) #GREEN dot
 
         #Update the filter with the last measurements
@@ -107,6 +121,8 @@ class ArTracker(object):
 
         #Resample the particles
         self.my_particle.resample()
+        current_entropy=self.my_particle.get_entropy()
+        rospy.loginfo(current_entropy)
 
 
 
@@ -120,11 +136,16 @@ class ArTracker(object):
         header.frame_id='map'
         particle_pcl=pcl2.create_cloud_xyz32(header,cloud_sets)
         self.pcl_pub.publish(particle_pcl)
+        # print "visualize detected"
+        # rospy.loginfo("visualize particles")
             
 	
 
     def listener(self,wait=0.0):
-        rospy.spin() 
+        # rospy.spin()
+        while not rospy.is_shutdown():
+            self.visualizeparticles()
+            rospy.Rate(3).sleep()
 
 
 if __name__ == '__main__':
@@ -132,4 +153,9 @@ if __name__ == '__main__':
 	# print("Initialize node")
         tracker_manager = ArTracker(sys.argv[1] if len(sys.argv) >1 else 0.0)
 	tracker_manager.listener()	
+        # while not rospy.is_shut_down():
+            # ArTracker.visualizeparticles()
+            # print "hello"
+            # rospy.sleep(1.0)
+        
 
