@@ -95,9 +95,11 @@ class ArTracker(object):
         self.my_particle.update(x_center, y_center)
 
         #Resample the particles
-        self.my_particle.resample()
+        self.my_particle.resample('residual')
         current_entropy=self.my_particle.get_entropy()
-        rospy.loginfo("resampledparticle : "+str(current_entropy))
+        # ParticlesContribution=self.my_particle.returnParticlesContribution()
+        # rospy.loginfo("resampledparticle : "+str(current_entropy))
+        # rospy.loginfo("contribution : "+str(ParticlesContribution))
 
 
     def PositionMeasurementCb(self,msg):
@@ -108,7 +110,7 @@ class ArTracker(object):
         if(detected_people==0):
             return
         else:
-            # rospy.loginfo("person detected")
+            rospy.loginfo("person detected")
             detected_=True
 
         x_center=poses_array[0].pos.x
@@ -141,7 +143,7 @@ class ArTracker(object):
     def visualizeparticles(self):
         cloud_sets=[]
         for x_particle, y_particle in self.my_particle.particles.astype(float):
-            cloud_sets.append([x_particle,y_particle,0.5])
+            cloud_sets.append([x_particle,y_particle,0.7])
         
         header=std_msgs.msg.Header()
         header.stamp=rospy.Time.now()
