@@ -53,21 +53,41 @@ class ArTracker(object):
     def __init__(self, wait=0.0):
 
         # template = cv2.imread('orange.png') #Load the image
-        tot_particles =300
-        self.std=0.05;
+        tot_particles =200
+        self.std=0.1;
         self.my_particle = ParticleFilter(20, 20, tot_particles)
+        self.context_particle = ParticleFilter(20,20,tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
 
         posearray_topic="/ar_tracker_measurements"
 	rospy.Subscriber(posearray_topic, PositionMeasurementArray, self.PositionMeasurementCb)
 
         self.pcl_pub=rospy.Publisher("/particle_samples",PointCloud2,queue_size=50)
+        self.pcl_context_pub=rospy.Publisher("/particle_samples_context",PointCloud2,queue_size=50)
         self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
+        self.context_category=1
+        self.search_mode=0
+        self.last_callbacktime=rospy.get_time()
+        self.context_activate=0
+        self.duration=0;
 
         # self.bridge = CvBridge()
     def Estimate_Filter(self):
         #Predict the position of the target
-        self.my_particle.predict(x_velocity=0, y_velocity=0, std=self.std)
+        self.my_particle.predict(x_velocity=0.05, y_velocity=0.05, std=self.std)
+        self.context_particle.predict(x_velocity=0.05, y_velocity=0.05, std=self.std)
+
+        rospy.loginfo("searchmode : %d ",self.search_mode)
+        # if self.search_mode==1 & self.context_activate==0:
+        if self.search_mode==1:
+            self.context_particle.predict_context(self.context_category, std=self.std)
+            # self.context_activate=1
+        # elif self.search_mode==1 & self.context_activate==1:
+            # self.context_particle.predict(x_velocity=0.00, y_velocity=0.00, std=self.std)
+        # else:
+        # self.context_particle.predict(x_velocity=0.05, y_velocity=0.05, std=self.std)
+            # print "nothing"
+        
 
         #Drawing the particles.
         # self.visualizeparticles()
@@ -75,16 +95,17 @@ class ArTracker(object):
 
         #Estimate the next position using the internal model
         x_estimated, y_estimated, _, _ = self.my_particle.estimate()
+        context_x_estimated, context_y_estimated, _, _ = self.context_particle.estimate()
 
         #publish 
         est_pose=PoseStamped()
-        est_pose.pose=Pose(Point(x_estimated,y_estimated,0.5),Quaternion(0,0,0,1))
+        est_pose.pose=Pose(Point(context_x_estimated,context_y_estimated,0.5),Quaternion(0,0,0,1))
         est_pose.header.stamp=rospy.Time.now()
         est_pose.header.frame_id='map'
 
         self.estimated_point_pub.publish(est_pose)
-        current_entropy=self.my_particle.get_entropy()
-        rospy.loginfo("estimated particle : "+str(current_entropy))
+        # current_entropy=self.my_particle.get_entropy()
+        # rospy.loginfo("estimated particle : "+str(current_entropy))
         # cv2.circle(frame, (x_estimated, y_estimated), 3, [0,255,0], 5) #GREEN dot
 
  
@@ -93,10 +114,12 @@ class ArTracker(object):
         #Update the filter with the last measurements
         
         self.my_particle.update(x_center, y_center)
-
-        #Resample the particles
         self.my_particle.resample('residual')
-        current_entropy=self.my_particle.get_entropy()
+
+        self.context_particle.update(x_center, y_center)
+        self.context_particle.resample('residual')
+
+        # current_entropy=self.my_particle.get_entropy()
         # ParticlesContribution=self.my_particle.returnParticlesContribution()
         # rospy.loginfo("resampledparticle : "+str(current_entropy))
         # rospy.loginfo("contribution : "+str(ParticlesContribution))
@@ -105,16 +128,21 @@ class ArTracker(object):
     def PositionMeasurementCb(self,msg):
         #recieve poses array from measurement
 
+        # rospy.loginfo("object detected")
         poses_array=msg.people
         detected_people=len(poses_array)
         if(detected_people==0):
+            self.search_mode=1
             return
         else:
-            rospy.loginfo("person detected")
+            # rospy.loginfo("object detected")
+            self.search_mode=0
+            self.context_activate=0
             detected_=True
 
         x_center=poses_array[0].pos.x
         y_center=poses_array[0].pos.y
+        # rospy.loginfo("x_center: %.2lf, y_center: %.2lf", x_center, y_center)
         # z_center=poses_array[0].position.z
         #data association
 
@@ -124,8 +152,8 @@ class ArTracker(object):
         #add noises
         coin = np.random.uniform()
         if(coin >= 1.0-self.noise_probability): 
-            x_noise = float(np.random.uniform(-0.15, 0.15))
-            y_noise = float(np.random.uniform(-0.15, 0.15))
+            x_noise = float(np.random.uniform(-0.25, 0.25))
+            y_noise = float(np.random.uniform(-0.25, 0.25))
                 # z_noise = int(np.random.uniform(-300, 300))
         else: 
             x_noise = 0
@@ -137,6 +165,8 @@ class ArTracker(object):
         
         self.Estimate_Filter()
         self.Update_Measurement_Filter(x_center,y_center)
+        # rospy.loginfo("last statement in estimatefilter")
+        self.last_callbacktime=rospy.get_time()
 
    
 
@@ -148,10 +178,28 @@ class ArTracker(object):
         header=std_msgs.msg.Header()
         header.stamp=rospy.Time.now()
         header.frame_id='map'
+        # header.frame_id='/world'
         particle_pcl=pcl2.create_cloud_xyz32(header,cloud_sets)
         self.pcl_pub.publish(particle_pcl)
         # print "visualize detected"
         # rospy.loginfo("visualize particles")
+        # rospy.loginfo("last statement in estimatefilter")
+
+        cloud_sets2=[]
+        for x_particle2, y_particle2 in self.context_particle.particles.astype(float):
+            cloud_sets2.append([x_particle2,y_particle2,0.7])
+            # rospy.loginfo("x : %.2lf, y : %.2lf ", x_particle2, y_particle2)
+        
+        # rospy.loginfo("length of context particle:%d ", len(cloud_sets2))
+        header=std_msgs.msg.Header()
+        header.stamp=rospy.Time.now()
+        header.frame_id='map'
+        # header.frame_id='/world'
+        particle_pcl2=pcl2.create_cloud_xyz32(header,cloud_sets2)
+        self.pcl_context_pub.publish(particle_pcl2)
+        # print "visualize detected"
+        rospy.loginfo("visualize particles")
+       
             
 	
 
@@ -160,7 +208,16 @@ class ArTracker(object):
         while not rospy.is_shutdown():
             self.Estimate_Filter()
             self.visualizeparticles()
-            rospy.Rate(3).sleep()
+            cur_time=rospy.get_time()
+            duration = cur_time -self.last_callbacktime
+            rospy.loginfo("duration : %lf", duration)
+            if duration>8:
+                self.search_mode=1
+            else:
+                self.search_mode=0
+
+            
+            rospy.Rate(2).sleep()
 
 
 if __name__ == '__main__':

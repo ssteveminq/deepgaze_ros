@@ -8,6 +8,7 @@ ALL_POINTS	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^ALL_POINTS = list
 ALL_POINTS	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^ALL_POINTS = list(range(0,68)) #Used for debug only$/;"	v
 ArTracker	scripts/person_tracking/ar_tracker.py	/^class ArTracker(object):$/;"	c
 DEBUG	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^DEBUG = True $/;"	v
+Estimate_Filter	scripts/person_tracking/ar_tracker.py	/^    def Estimate_Filter(self):$/;"	m	class:ArTracker
 FaceDectectors	scripts/test_ros	/^class FaceDectectors(object):$/;"	c
 Face_manager	scripts/test_ros	/^	Face_manager = FaceDectectors(sys.argv[1] if len(sys.argv) > 1 else 0.0)$/;"	v	class:FaceDectectors
 Head_Dectectors	scripts/head_pose_estimation/head_pose_image.py	/^class Head_Dectectors(object):$/;"	c
@@ -54,6 +55,7 @@ SaliencyManager	scripts/fasa_saliency_map/saliecy_map.py	/^class SaliencyManager
 TRACKED_POINTS	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^TRACKED_POINTS = (0, 4, 8, 12, 16, 17, 26, 27, 30, 33, 36, 39, 42, 45, 62)$/;"	v
 TRACKED_POINTS	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^TRACKED_POINTS = (0, 4, 8, 12, 16, 17, 26, 27, 30, 33, 36, 39, 42, 45, 62)$/;"	v
 USE_WEBCAM	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^USE_WEBCAM = False$/;"	v
+Update_Measurement_Filter	scripts/person_tracking/ar_tracker.py	/^    def Update_Measurement_Filter(self,x_center, y_center):$/;"	m	class:ArTracker
 __init__	scripts/fasa_saliency_map/saliecy_map.py	/^    def __init__(self, wait=0.0):$/;"	m	class:SaliencyManager
 __init__	scripts/head_pose_estimation/head_pose_image.py	/^    def __init__(self, wait=0.0):$/;"	m	class:Head_Dectectors
 __init__	scripts/object_tracking/multi-template_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
