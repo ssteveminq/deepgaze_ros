@@ -12,6 +12,8 @@ Estimate_Filter	scripts/person_tracking/ar_tracker.py	/^    def Estimate_Filter(
 FaceDectectors	scripts/test_ros	/^class FaceDectectors(object):$/;"	c
 Face_manager	scripts/test_ros	/^	Face_manager = FaceDectectors(sys.argv[1] if len(sys.argv) > 1 else 0.0)$/;"	v	class:FaceDectectors
 Head_Dectectors	scripts/head_pose_estimation/head_pose_image.py	/^class Head_Dectectors(object):$/;"	c
+Is_inFOV	scripts/person_tracking/ar_tracker.py	/^    def Is_inFOV(self, point_x, point_y):$/;"	m	class:ArTracker
+Is_inFOV_point	scripts/person_tracking/ar_tracker.py	/^    def Is_inFOV_point(self, point):$/;"	m	class:ArTracker
 N	scripts/pcl_practice/pcl_visualtest.py	/^N=300$/;"	v
 ObjectTracker	scripts/object_tracking/multi-template_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/particle_object_tracker.py	/^class ObjectTracker(object):$/;"	c
@@ -65,6 +67,7 @@ __init__	scripts/person_tracking/ar_tracker.py	/^    def __init__(self, wait=0.0
 __init__	scripts/person_tracking/particle_person_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:PersonTracker
 __init__	scripts/test_ros	/^	def __init__(self, wait=0.0):$/;"	m	class:FaceDectectors
 ax1	scripts/head_pose_estimation/data_anal.py	/^ax1 = fig.add_subplot(111)$/;"	v
+click_point_Cb	scripts/person_tracking/ar_tracker.py	/^    def click_point_Cb(self,msg):$/;"	m	class:ArTracker
 cloud_points	scripts/pcl_practice/pcl_visualtest.py	/^    cloud_points = [[1.0, 1.0, 0.0],[1.0, 2.0, 0.0]]$/;"	v
 cloud_sets	scripts/pcl_practice/pcl_visualtest.py	/^        cloud_sets=[]$/;"	v
 cloud_sets	scripts/pcl_practice/pcl_visualtest.py	/^    cloud_sets=[]$/;"	v
@@ -95,6 +98,7 @@ image_callback	scripts/object_tracking/multi-template_tracker.py	/^    def image
 image_callback	scripts/object_tracking/particle_object_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
 image_callback	scripts/object_tracking/webcam_object_tracker.py	/^    def image_callback(self,msg):$/;"	m	class:ObjectTracker
 image_callback	scripts/test_ros	/^	def image_callback(self,msg):$/;"	m	class:FaceDectectors
+joint_state_Cb	scripts/person_tracking/ar_tracker.py	/^    def joint_state_Cb(self, msg):$/;"	m	class:ArTracker
 key_callback	scripts/test_ros	/^	def key_callback(self,msg):		#"p"$/;"	m	class:FaceDectectors
 leg	scripts/head_pose_estimation/data_anal.py	/^leg = ax1.legend()$/;"	v
 listener	scripts/fasa_saliency_map/saliecy_map.py	/^    def listener(self,wait=0.0):$/;"	m	class:SaliencyManager
@@ -126,6 +130,8 @@ pitch	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.
 posearray_callback	scripts/person_tracking/particle_person_tracker.py	/^    def posearray_callback(self,msg):$/;"	m	class:PersonTracker
 predict	scripts/pcl_practice/pcl_visualtest.py	/^def predict(x_veloity, y_velocity, std):$/;"	f
 read_datafile	scripts/head_pose_estimation/data_anal.py	/^def read_datafile(file_name):$/;"	f
+rejectparticles	scripts/person_tracking/ar_tracker.py	/^    def rejectparticles(self):$/;"	m	class:ArTracker
+robot_pose_Cb	scripts/person_tracking/ar_tracker.py	/^    def robot_pose_Cb(self, msg):$/;"	m	class:ArTracker
 roll	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    roll = my_head_pose_estimator.return_roll(image)  # Evaluate the roll angle using a CNN$/;"	v
 roll	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^    roll = my_head_pose_estimator.return_roll(image) #Evaluate the roll angle using a CNN$/;"	v
 scaled_polygon_pcl	scripts/pcl_practice/pcl_visualtest.py	/^        scaled_polygon_pcl = pcl2.create_cloud_xyz32(header, cloud_sets)$/;"	v

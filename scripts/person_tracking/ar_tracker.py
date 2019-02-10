@@ -25,15 +25,19 @@ import roslib
 import sys
 import rospy
 import random
+import math
 import numpy as np
+from numpy.random import uniform
 from cv_bridge import CvBridge, CvBridgeError
 import select, termios, tty
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import JointState
 import sensor_msgs.point_cloud2 as pcl2
 
 from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PointStamped
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import Quaternion
@@ -42,6 +46,9 @@ from std_msgs.msg import String
 import std_msgs.msg
 from os import listdir
 import os
+import tf
+from tf import TransformListener
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 # import tensorflow as tf
 
 # from deepgaze.color_detection import BackProjectionColorDetector
@@ -55,32 +62,112 @@ class ArTracker(object):
         # template = cv2.imread('orange.png') #Load the image
         tot_particles =200
         self.std=0.1;
-        self.my_particle = ParticleFilter(20, 20, tot_particles)
-        self.context_particle = ParticleFilter(20,20,tot_particles)
+        self.my_particle = ParticleFilter(10, 10, tot_particles)
+        self.context_particle = ParticleFilter(10,10,tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
+        self.robot_pose=np.zeros((5,1))
 
+
+        self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
+
+        #Declare for subscribing rostopics
         posearray_topic="/ar_tracker_measurements"
 	rospy.Subscriber(posearray_topic, PositionMeasurementArray, self.PositionMeasurementCb)
+        robot_pose_topic='global_pose'
+	rospy.Subscriber(robot_pose_topic, PoseStamped, self.robot_pose_Cb)
+        jointstates_topic='hsrb/joint_states'
+	rospy.Subscriber(jointstates_topic, JointState, self.joint_state_Cb)
+        clicked_point_topic="/clicked_point"
+	rospy.Subscriber(clicked_point_topic, PointStamped, self.click_point_Cb)
+ 
 
+        #Declare for publishing rostopics
         self.pcl_pub=rospy.Publisher("/particle_samples",PointCloud2,queue_size=50)
         self.pcl_context_pub=rospy.Publisher("/particle_samples_context",PointCloud2,queue_size=50)
-        self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
+        self.pcl_fov_pub=rospy.Publisher("/particle_samples_fov",PointCloud2,queue_size=50)
+
+        #Initialization of variables
         self.context_category=1
         self.search_mode=0
         self.last_callbacktime=rospy.get_time()
         self.context_activate=0
         self.duration=0;
+        self.counter=0;
+        
 
-        # self.bridge = CvBridge()
+    def Is_inFOV_point(self, point):
+        # 2 lies are made based on information of robot_pose/joint angle of tilt angle
+        #(y-robot_pose_y)=tan((robot_yaw+head_yaw)-FOVW/2)(x=robot_pose_x)
+        slope1 =math.tan(self.robot_pose[2]+self.robot_pose[3]-29*math.pi/180.0)
+        slope2 =math.tan(self.robot_pose[2]+self.robot_pose[3]+29*math.pi/180.0)
+
+        res1=point.y-(slope1*(point.x-self.robot_pose[0])+self.robot_pose[1])
+        res2=point.y-(slope2*(point.x-self.robot_pose[0])+self.robot_pose[1])
+        rospy.loginfo("point_x: %.2lf, point_y: %.2lf, y1: %.2lf, y2: %.2lf",point.x, point.y, res1,res2)
+        if (res1>0) & (res2<0):
+            return True
+        else:
+            return False
+    
+    
+    def Is_inFOV(self, point_x, point_y):
+        slope1 =math.tan(self.robot_pose[2]+self.robot_pose[3]-29*math.pi/180.0)
+        slope2 =math.tan(self.robot_pose[2]+self.robot_pose[3]+29*math.pi/180.0)
+
+        res1=point_y-(slope1*(point_x-self.robot_pose[0])+self.robot_pose[1])
+        res2=point_y-(slope2*(point_x-self.robot_pose[0])+self.robot_pose[1])
+        # rospy.loginfo("point_x: %.2lf, point_y: %.2lf, y1: %.2lf, y2: %.2lf",point_x, point_y, res1,res2)
+        if (res1>0) & (res2<0):
+            return True
+        else:
+            return False
+    
+
+
+    def click_point_Cb(self,msg):
+        rospy.loginfo("clicked_point")
+        result = self.Is_inFOV_point(msg.point)
+        rospy.loginfo("fov test result: %d  ",result)
+
+
+
+    def robot_pose_Cb(self, msg):
+        self.robot_pose[0]=msg.pose.position.x
+        self.robot_pose[1]=msg.pose.position.y
+        robot_orientation=msg.pose.orientation
+
+        #get yaw angle from quarternion
+        orientation_list=[robot_orientation.x, robot_orientation.y, robot_orientation.z,robot_orientation.w]
+        roll,pitch,yaw=euler_from_quaternion(orientation_list)
+        self.robot_pose[2]=yaw
+        # robot_yaw=msg.:
+
+
+    def joint_state_Cb(self, msg):
+        self.robot_pose[3]=msg.position[9]
+        self.robot_pose[4]=msg.position[10]
+        # rospy.loginfo("tilt joint: %.2lf",self.robot_pose[3])
+
+        
+
     def Estimate_Filter(self):
         #Predict the position of the target
-        self.my_particle.predict(x_velocity=0.05, y_velocity=0.05, std=self.std)
-        self.context_particle.predict(x_velocity=0.05, y_velocity=0.05, std=self.std)
+        self.my_particle.predict(x_velocity=0.01, y_velocity=0.01, std=self.std)
+        self.context_particle.predict(x_velocity=0.01, y_velocity=0.01, std=self.std)
 
-        rospy.loginfo("searchmode : %d ",self.search_mode)
+        # rospy.loginfo("searchmode : %d ",self.search_mode)
         # if self.search_mode==1 & self.context_activate==0:
         if self.search_mode==1:
-            self.context_particle.predict_context(self.context_category, std=self.std)
+            if self.counter<2000:
+                self.context_particle.predict_context(self.context_category, std=self.std)
+            else:
+                self.context_particle.predict(x_velocity=0.05, y_velocity=0.05, std=self.std)
+
+            # self.counter=self.counter+1
+            # if self.counter==2000:
+                # self.search_mode=0
+                # self.counter=0;
+
             # self.context_activate=1
         # elif self.search_mode==1 & self.context_activate==1:
             # self.context_particle.predict(x_velocity=0.00, y_velocity=0.00, std=self.std)
@@ -138,6 +225,7 @@ class ArTracker(object):
             # rospy.loginfo("object detected")
             self.search_mode=0
             self.context_activate=0
+            self.counter=0
             detected_=True
 
         x_center=poses_array[0].pos.x
@@ -152,8 +240,8 @@ class ArTracker(object):
         #add noises
         coin = np.random.uniform()
         if(coin >= 1.0-self.noise_probability): 
-            x_noise = float(np.random.uniform(-0.25, 0.25))
-            y_noise = float(np.random.uniform(-0.25, 0.25))
+            x_noise = float(np.random.uniform(-0.15, 0.15))
+            y_noise = float(np.random.uniform(-0.15, 0.15))
                 # z_noise = int(np.random.uniform(-300, 300))
         else: 
             x_noise = 0
@@ -198,9 +286,42 @@ class ArTracker(object):
         particle_pcl2=pcl2.create_cloud_xyz32(header,cloud_sets2)
         self.pcl_context_pub.publish(particle_pcl2)
         # print "visualize detected"
-        rospy.loginfo("visualize particles")
+        # rospy.loginfo("visualize particles")
+    
+    def rejectparticles(self):
+        avg_x=0
+        avg_y=0
+        cloud_sets3=[]
+        avg_count=0
+        for x_particle, y_particle in self.my_particle.particles.astype(float):
+            if self.Is_inFOV(x_particle,y_particle)==False:
+                avg_x+=x_particle
+                avg_y+=y_particle
+                avg_count=avg_count+1;
+                # rospy.loginfo("x: %.2lf, y: %.2lf", x_particle,y_particle)
+                cloud_sets3.append([x_particle,y_particle,0.9])
+                
+        if avg_count<50:
+            return
+        else:
+            rospy.loginfo("avg count not in FOV:%d", avg_count )
+            header=std_msgs.msg.Header()
+            header.stamp=rospy.Time.now()
+            header.frame_id='map'
+            # header.frame_id='/world'
+            particle_pcl3=pcl2.create_cloud_xyz32(header,cloud_sets3)
+            self.pcl_fov_pub.publish(particle_pcl3)
+        
+
+        avg_x=avg_x/avg_count;
+        avg_y=avg_y/avg_count;
+                
+        for x_particle, y_particle in self.my_particle.particles.astype(float):
+            if self.Is_inFOV(x_particle,y_particle):
+                x_particle=avg_x+uniform(-0.25,0.25)
+                y_particle=avg_y+uniform(-0.2,0.25)
+
        
-            
 	
 
     def listener(self,wait=0.0):
@@ -208,15 +329,21 @@ class ArTracker(object):
         while not rospy.is_shutdown():
             self.Estimate_Filter()
             self.visualizeparticles()
+            self.rejectparticles()
             cur_time=rospy.get_time()
             duration = cur_time -self.last_callbacktime
-            rospy.loginfo("duration : %lf", duration)
-            if duration>8:
+            # rospy.loginfo("duration : %lf", duration)
+            if duration>6:
                 self.search_mode=1
             else:
                 self.search_mode=0
-
             
+            # test_point_x=0.56
+            # test_point_y=-0.56
+            # res=self.Is_inFOV(test_point_x,test_point_y)
+            # rospy.loginfo("result: %d",res )
+            
+            # rospy.spinOnce()
             rospy.Rate(2).sleep()
 
 
