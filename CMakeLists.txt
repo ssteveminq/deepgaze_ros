@@ -13,9 +13,15 @@ find_package(catkin
     pcl_ros
     pcl_conversions
     people_msgs
+    octomap_ros
+    octomap_msgs
 )
 
 find_package(PCL 1.7 REQUIRED)
+find_package(octomap REQUIRED)
+
+include_directories(${OCTOMAP_INCLUDE_DIRS})
+#target_link_libraries(${OCTOMAP_LIBRARIES})
 
 add_service_files(
    FILES

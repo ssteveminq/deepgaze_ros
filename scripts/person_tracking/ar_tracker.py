@@ -35,6 +35,7 @@ from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import JointState
 import sensor_msgs.point_cloud2 as pcl2
 
+from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PointStamped
@@ -49,6 +50,11 @@ import os
 import tf
 from tf import TransformListener
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from octomap_msgs.msg import Octomap
+import octomap_msgs
+# import octomap
+# from octomap import OcTreeBase, OcTree
+
 # import tensorflow as tf
 
 # from deepgaze.color_detection import BackProjectionColorDetector
@@ -59,13 +65,13 @@ from deepgaze.object3d_tracking import ParticleFilter
 class ArTracker(object):
     def __init__(self, wait=0.0):
 
-        # template = cv2.imread('orange.png') #Load the image
         tot_particles =200
         self.std=0.1;
         self.my_particle = ParticleFilter(10, 10, tot_particles)
         self.context_particle = ParticleFilter(10,10,tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
         self.robot_pose=np.zeros((5,1))
+        self.dynamic_map=OccupancyGrid()
 
 
         self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
@@ -79,6 +85,11 @@ class ArTracker(object):
 	rospy.Subscriber(jointstates_topic, JointState, self.joint_state_Cb)
         clicked_point_topic="/clicked_point"
 	rospy.Subscriber(clicked_point_topic, PointStamped, self.click_point_Cb)
+        octomap_topic="/octomap_binary"
+	rospy.Subscriber(octomap_topic, Octomap, self.octomap_Cb)
+        
+        map_topic="/projected_map"
+        rospy.Subscriber(map_topic, OccupancyGrid, self.map_Cb)
  
 
         #Declare for publishing rostopics
@@ -93,7 +104,44 @@ class ArTracker(object):
         self.context_activate=0
         self.duration=0;
         self.counter=0;
+
+    def octomap_Cb(self,msg):
+        rospy.loginfo("octomap callback")
+        # tree =octomap_msgs.msg.msgToMap(msg)
+        # octree=
+
         
+    def map_Cb(self,msg):
+        self.dynamic_map = msg
+        rospy.loginfo("origin x: %.2lf, y: %.2lf, resolution: %.2lf", self.dynamic_map.info.origin.position.x
+                      ,self.dynamic_map.info.origin.position.y,self.dynamic_map.info.resolution)
+
+
+
+
+    def check_obsb(self,pos_x,pos_y):
+
+        map_idx=self.Coord2CellNum(pos_x,pos_y)
+
+        if(self.dynamic_map.data[map_idx]>20):
+            return True
+        else:
+            return False
+
+    def Coord2CellNum(self, pos_x, pos_y):
+        target_Coord=[]
+
+        reference_origin_x=self.dynamic_map.info.origin.position.x
+        reference_origin_y=self.dynamic_map.info.origin.position.y
+
+        temp_x = pos_x-reference_origin_x
+        temp_y = pos_y-reference_origin_y
+
+        target_Coord_x= int(temp_x/dynamic_map.info.resolution)
+        target_Coord_y= int(temp_y/dynamic_map.info.resolution)
+
+        index= target_Coord_x+dynamic_map.info.width*target_Coord_y
+        return index
 
     def Is_inFOV_point(self, point):
         # 2 lies are made based on information of robot_pose/joint angle of tilt angle
