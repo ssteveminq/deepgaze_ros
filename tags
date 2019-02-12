@@ -84,6 +84,7 @@ fig	scripts/head_pose_estimation/data_anal.py	/^fig = plt.figure()$/;"	v
 file_name	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    file_name = str(i) + ".jpg"$/;"	v
 file_name	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch.py	/^    file_name = str(i) + ".jpg"$/;"	v
 filepath	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^    filepath = "\/home\/mk\/hsr\/attention_ws\/src\/interaction_functions\/deepgaze_ros\/scripts\/ex_cnn_head_pose_estimation_images\/2.jpg"$/;"	v
+filter_by_Occgrids	scripts/person_tracking/ar_tracker.py	/^    def filter_by_Occgrids(self):$/;"	m	class:ArTracker
 fourcc	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^fourcc = cv2.VideoWriter_fourcc(*'XVID')$/;"	v
 frame_mask	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^    frame_mask = my_back_detector.returnMask(frame, morph_opening=True, blur=True, kernel_size=5, iterations=2)$/;"	v
 header	scripts/pcl_practice/pcl_visualtest.py	/^        header = std_msgs.msg.Header()$/;"	v
@@ -124,7 +125,6 @@ my_head_pose_estimator	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_
 my_mask_analyser	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^my_mask_analyser = BinaryMaskAnalyser()$/;"	v
 my_particle	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^my_particle = ParticleFilter(1920, 1080, tot_particles)$/;"	v
 noise_probability	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^noise_probability = 0.15 #in range [0, 1.0]$/;"	v
-octomap_Cb	scripts/person_tracking/ar_tracker.py	/^    def octomap_Cb(self,msg):$/;"	m	class:ArTracker
 out	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^out = cv2.VideoWriter(".\/cows_output.avi", fourcc, 25.0, (1920,1080))$/;"	v
 particles	scripts/pcl_practice/pcl_visualtest.py	/^particles = np.empty((N,2))$/;"	v
 pcl_pub	scripts/pcl_practice/pcl_visualtest.py	/^    pcl_pub = rospy.Publisher("\/my_pcl_topic", PointCloud2)$/;"	v
