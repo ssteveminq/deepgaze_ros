@@ -71,9 +71,12 @@ class ArTracker(object):
         self.context_particle = ParticleFilter(10,10,tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
         self.robot_pose=np.zeros((5,1))
+        self.map_received=False
         self.dynamic_map=OccupancyGrid()
+        self.static_map=OccupancyGrid()
 
         self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
+        self.avg_point_pub=rospy.Publisher("/avg_point",PoseStamped,queue_size=30)
 
 
         #Declare for subscribing rostopics
@@ -90,6 +93,9 @@ class ArTracker(object):
         
         map_topic="/projected_map"
         rospy.Subscriber(map_topic, OccupancyGrid, self.map_Cb)
+        
+        staticmap_topic="/static_obstacle_map_ref"
+        rospy.Subscriber(staticmap_topic, OccupancyGrid, self.staticmap_Cb)
  
 
         #Declare for publishing rostopics
@@ -113,6 +119,9 @@ class ArTracker(object):
         # tree =octomap_msgs.msg.msgToMap(msg)
         # octree=
 
+    def staticmap_Cb(self,msg):
+        self.static_map = msg
+        self.map_received=True
         
     def map_Cb(self,msg):
         self.dynamic_map = msg
@@ -124,9 +133,10 @@ class ArTracker(object):
 
     def check_obsb(self,pos_x,pos_y):
 
-        map_idx=self.Coord2CellNum(pos_x,pos_y)
+        map_idx=self.Coord2CellNum_STATIC(pos_x,pos_y)
+        # rospy.loginfo("map idx : %d ", map_idx )
 
-        if(self.dynamic_map.data[map_idx]>20):
+        if(self.static_map.data[map_idx]>20):
             return True
         else:
             return False
@@ -146,34 +156,97 @@ class ArTracker(object):
         index= target_Coord_x+self.dynamic_map.info.width*target_Coord_y
         return index
 
-    def Is_inFOV_point(self, point):
-        # 2 lies are made based on information of robot_pose/joint angle of tilt angle
-        #(y-robot_pose_y)=tan((robot_yaw+head_yaw)-FOVW/2)(x=robot_pose_x)
-        slope1 =math.tan(self.robot_pose[2]+self.robot_pose[3]-29*math.pi/180.0)
-        slope2 =math.tan(self.robot_pose[2]+self.robot_pose[3]+29*math.pi/180.0)
+    def Coord2CellNum_STATIC(self, pos_x, pos_y):
+        target_Coord=[]
 
-        res1=point.y-(slope1*(point.x-self.robot_pose[0])+self.robot_pose[1])
-        res2=point.y-(slope2*(point.x-self.robot_pose[0])+self.robot_pose[1])
-        rospy.loginfo("point_x: %.2lf, point_y: %.2lf, y1: %.2lf, y2: %.2lf",point.x, point.y, res1,res2)
-        if (res1>0) & (res2<0):
+        reference_origin_x=self.static_map.info.origin.position.x
+        reference_origin_y=self.static_map.info.origin.position.y
+
+        temp_x = pos_x-reference_origin_x
+        temp_y = pos_y-reference_origin_y
+
+        target_Coord_x= int(temp_x/self.static_map.info.resolution)
+        target_Coord_y= int(temp_y/self.static_map.info.resolution)
+
+        index= target_Coord_x+self.static_map.info.width*target_Coord_y
+        return index
+
+    def getlinevalue(self, line_type, input_x, input_y ):
+        head_angle = self.robot_pose[2]+self.robot_pose[3]
+        theta_1= self.robot_pose[2]+self.robot_pose[3]-29*math.pi/180.0
+        theta_2= self.robot_pose[2]+self.robot_pose[3]+29*math.pi/180.0
+        slope1 = math.tan(theta_1)
+        slope2 = math.tan(theta_2)
+        mode=0
+        
+        coeff_sign=-1.0
+
+        if (theta_1 < -math.pi/2.0) & (theta_2 > -math.pi/2.0):
+            temp=slope2
+            mode=1
+        elif (theta_1 < math.pi/2.0) & (theta_2 > math.pi/2.0):
+            mode=2
+        elif (theta_1 < -math.pi/2.0) & (theta_2 < -math.pi/2.0):
+            mode=5
+        elif  (theta_2 < -math.pi/2.0):
+            mode=3
+        elif (theta_1 > math.pi/2) & (theta_2 > math.pi/2.0):
+            mode=4
+
+        if line_type==1:
+            slope=slope1
+            if mode==0:
+               coeff_sign=-1.0
+            elif mode==1:
+               coeff_sign=1.0
+            elif mode==2:
+               coeff_sign=-1.0  
+            elif mode==4:
+               coeff_sign=1.0 
+            elif mode==5:
+               coeff_sign=1.0
+
+        elif line_type ==2:
+            slope=slope2
+            if mode==1:
+                coeff_sign=1.0;
+            elif mode==0:
+                coeff_sign=1.0 
+            elif mode==3:
+                coeff_sign=1.0
+        else:
+            rospy.loginfo("linetype is wrong")
+
+        res= slope*(input_x-self.robot_pose[0])+self.robot_pose[1]-input_y;
+
+        if res*coeff_sign > 0 :
+            return True
+        else:
+            return False
+
+
+
+    def Is_inFOV_point(self, point):
+
+        res1=self.getlinevalue(1,point.x, point.y)
+        res2=self.getlinevalue(2,point.x, point.y)
+
+        if res1 & res2:
             return True
         else:
             return False
     
     
     def Is_inFOV(self, point_x, point_y):
-        slope1 =math.tan(self.robot_pose[2]+self.robot_pose[3]-29*math.pi/180.0)
-        slope2 =math.tan(self.robot_pose[2]+self.robot_pose[3]+29*math.pi/180.0)
 
-        res1=point_y-(slope1*(point_x-self.robot_pose[0])+self.robot_pose[1])
-        res2=point_y-(slope2*(point_x-self.robot_pose[0])+self.robot_pose[1])
-        # rospy.loginfo("point_x: %.2lf, point_y: %.2lf, y1: %.2lf, y2: %.2lf",point_x, point_y, res1,res2)
-        if (res1>0) & (res2<0):
+        res1=self.getlinevalue(1,point_x, point_y)
+        res2=self.getlinevalue(2,point_x, point_y)
+        if res1 & res2:
             return True
         else:
             return False
     
-
+    
 
     def click_point_Cb(self,msg):
         rospy.loginfo("clicked_point")
@@ -203,8 +276,8 @@ class ArTracker(object):
 
     def Estimate_Filter(self):
         #Predict the position of the target
-        self.my_particle.predict(x_velocity=0.01, y_velocity=0.01, std=self.std)
-        self.context_particle.predict(x_velocity=0.01, y_velocity=0.01, std=self.std)
+        self.my_particle.predict(x_velocity=0.00, y_velocity=0.00, std=self.std)
+        self.context_particle.predict(x_velocity=0.00, y_velocity=0.00, std=self.std)
 
         # rospy.loginfo("searchmode : %d ",self.search_mode)
         # if self.search_mode==1 & self.context_activate==0:
@@ -249,11 +322,14 @@ class ArTracker(object):
     def filter_by_Occgrids(self):
         #based on projected_map from octomap
         #remove partilces from partilces false-postive
-        for x_particle, y_particle in self.my_particle.particles.astype(float):
-            if self.check_obsb(x_particle, y_particle)==True:
-                x_particle=self.avg_x+uniform(-0.25,0.25)
-                y_particle=self.avg_y+uniform(-0.2,0.25)
-        #should update weight as well
+        if self.map_received:
+            for i in range(len(self.my_particle.particles)):
+                x_particle = self.my_particle.particles[i,0]
+                y_particle = self.my_particle.particles[i,1]
+                if self.check_obsb(x_particle, y_particle)==True:
+                    self.my_particle.particles[i,0]=self.avg_x+uniform(-0.1,0.1)
+                    self.my_particle.particles[i,1]=self.avg_y+uniform(-0.1,0.1)
+
 
 
 
@@ -274,13 +350,13 @@ class ArTracker(object):
         # print self.my_particle.weights
         current_entropy=self.my_particle.get_entropy()
         weight_var=np.var(100*self.my_particle.weights, dtype=np.float64)
-        rospy.loginfo("variance of particles before: %.6lf, entropy: %.3lf",weight_var,current_entropy)
+        # rospy.loginfo("variance of particles before: %.6lf, entropy: %.3lf",weight_var,current_entropy)
         self.my_particle.resample('residual')
         # self.my_particle.resample('residual')
         weight_var=np.var(100*self.my_particle.weights, dtype=np.float64)
         current_entropy=self.my_particle.get_entropy()
         # weight_var=np.var(self.my_particle.weights)
-        rospy.loginfo("variance of particles after: %.6lf, entropy: %.3lf",weight_var,current_entropy)
+        # rospy.loginfo("variance of particles after: %.6lf, entropy: %.3lf",weight_var,current_entropy)
         
 
 
@@ -374,6 +450,8 @@ class ArTracker(object):
     def rejectparticles(self):
         cloud_sets3=[]
         avg_count=0
+        # calculate the particle without FOV
+        # obtain average locations of the paritlce that are not in FOV
         for x_particle, y_particle in self.my_particle.particles.astype(float):
             if self.Is_inFOV(x_particle,y_particle)==False:
                 self.avg_x+=x_particle
@@ -382,7 +460,7 @@ class ArTracker(object):
                 # rospy.loginfo("x: %.2lf, y: %.2lf", x_particle,y_particle)
                 cloud_sets3.append([x_particle,y_particle,0.9])
                 
-        if avg_count<50:
+        if avg_count<30:
             return
         else:
             # rospy.loginfo("avg count not in FOV:%d", avg_count )
@@ -396,11 +474,29 @@ class ArTracker(object):
 
         self.avg_x=self.avg_x/avg_count;
         self.avg_y=self.avg_y/avg_count;
+
+        avg_pose=PoseStamped()
+        avg_pose.pose=Pose(Point(self.avg_x,self.avg_y,self.target_z),Quaternion(0,0,0,1))
+        avg_pose.header.stamp=rospy.Time.now()
+        avg_pose.header.frame_id='map'
+        self.avg_point_pub.publish(avg_pose)
+
+        #update interior particles in my_particles
+        for i in range(len(self.my_particle.particles)):
+            x_particle = self.my_particle.particles[i,0]
+            y_particle = self.my_particle.particles[i,1]
+            if self.Is_inFOV(x_particle,y_particle)==True:
+                self.my_particle.particles[i,0]=self.avg_x+uniform(-0.2,0.2)
+                self.my_particle.particles[i,1]=self.avg_y+uniform(-0.2,0.2)
+
+
                 
-        for x_particle, y_particle in self.my_particle.particles.astype(float):
-            if self.Is_inFOV(x_particle,y_particle):
-                x_particle=self.avg_x+uniform(-0.25,0.25)
-                y_particle=self.avg_y+uniform(-0.2,0.25)
+        # for x_particle, y_particle in self.my_particle.particles.astype(float):
+            # if self.Is_inFOV(x_particle,y_particle)==True:
+                # x_particle=0.0
+                # y_particle=1.0
+                # x_particle=self.avg_x+uniform(-0.2,0.2)
+                # y_particle=self.avg_y+uniform(-0.2,0.2)
 
        
 	
@@ -408,10 +504,10 @@ class ArTracker(object):
     def listener(self,wait=0.0):
         # rospy.spin()
         while not rospy.is_shutdown():
-            self.Estimate_Filter()
-            self.visualizeparticles()
             self.rejectparticles()
+            self.Estimate_Filter()
             # self.filter_by_Occgrids()
+            self.visualizeparticles()
             cur_time=rospy.get_time()
             duration = cur_time -self.last_callbacktime
             # rospy.loginfo("duration : %lf", duration)
