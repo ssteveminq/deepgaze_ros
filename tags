@@ -83,6 +83,7 @@ crop_face	scripts/test_ros	/^	def crop_face(self,image_data):$/;"	m	class:FaceDe
 data	scripts/head_pose_estimation/data_anal.py	/^data = np.genfromtxt('test_roll.csv', delimiter=',', skip_header=10,$/;"	v
 depth	scripts/pcl_practice/pcl_visualtest.py	/^depth =10$/;"	v
 estimate	scripts/pcl_practice/pcl_visualtest.py	/^def estimate():$/;"	f
+evaluate_meas_samples	scripts/person_tracking/ar_tracker.py	/^    def evaluate_meas_samples(self):$/;"	m	class:ArTracker
 fig	scripts/head_pose_estimation/data_anal.py	/^fig = plt.figure()$/;"	v
 file_name	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    file_name = str(i) + ".jpg"$/;"	v
 file_name	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch.py	/^    file_name = str(i) + ".jpg"$/;"	v
@@ -90,6 +91,7 @@ filepath	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py
 filter_by_Occgrids	scripts/person_tracking/ar_tracker.py	/^    def filter_by_Occgrids(self):$/;"	m	class:ArTracker
 fourcc	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^fourcc = cv2.VideoWriter_fourcc(*'XVID')$/;"	v
 frame_mask	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^    frame_mask = my_back_detector.returnMask(frame, morph_opening=True, blur=True, kernel_size=5, iterations=2)$/;"	v
+generate_z_samples	scripts/person_tracking/ar_tracker.py	/^    def generate_z_samples(self, num):$/;"	m	class:ArTracker
 getlinevalue	scripts/person_tracking/ar_tracker.py	/^    def getlinevalue(self, line_type, input_x, input_y ):$/;"	m	class:ArTracker
 header	scripts/pcl_practice/pcl_visualtest.py	/^        header = std_msgs.msg.Header()$/;"	v
 header	scripts/pcl_practice/pcl_visualtest.py	/^    header = std_msgs.msg.Header()$/;"	v

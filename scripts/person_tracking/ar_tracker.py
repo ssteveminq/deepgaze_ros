@@ -74,8 +74,10 @@ class ArTracker(object):
         self.map_received=False
         self.dynamic_map=OccupancyGrid()
         self.static_map=OccupancyGrid()
+        self.meas_samples=np.empty((num,3))
 
         self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
+        self.sample_meas_pub=rospy.Publisher("/measurements_sample",PoseArray,queue_size=30)
         self.avg_point_pub=rospy.Publisher("/avg_point",PoseStamped,queue_size=30)
 
 
@@ -110,7 +112,7 @@ class ArTracker(object):
         self.context_activate=0
         self.duration=0
         self.counter=0
-        self.target_z=0
+        self.target_z=0.7
         self.avg_x=0
         self.avg_y=0
 
@@ -125,13 +127,10 @@ class ArTracker(object):
         
     def map_Cb(self,msg):
         self.dynamic_map = msg
-        # rospy.loginfo("origin x: %.2lf, y: %.2lf, resolution: %.2lf", self.dynamic_map.info.origin.position.x
-                      # ,self.dynamic_map.info.origin.position.y,self.dynamic_map.info.resolution)
-
-
 
 
     def check_obsb(self,pos_x,pos_y):
+        #return True if point collides obstacles
 
         map_idx=self.Coord2CellNum_STATIC(pos_x,pos_y)
         # rospy.loginfo("map idx : %d ", map_idx )
@@ -142,6 +141,7 @@ class ArTracker(object):
             return False
 
     def Coord2CellNum(self, pos_x, pos_y):
+        #calculate dynamic map index number from position information
         target_Coord=[]
 
         reference_origin_x=self.dynamic_map.info.origin.position.x
@@ -157,6 +157,7 @@ class ArTracker(object):
         return index
 
     def Coord2CellNum_STATIC(self, pos_x, pos_y):
+        #calculate static map index number from position information
         target_Coord=[]
 
         reference_origin_x=self.static_map.info.origin.position.x
@@ -224,9 +225,8 @@ class ArTracker(object):
         else:
             return False
 
-
-
     def Is_inFOV_point(self, point):
+        #return True if point is in FOV
 
         res1=self.getlinevalue(1,point.x, point.y)
         res2=self.getlinevalue(2,point.x, point.y)
@@ -238,6 +238,7 @@ class ArTracker(object):
     
     
     def Is_inFOV(self, point_x, point_y):
+        #return True if point is in FOV
 
         res1=self.getlinevalue(1,point_x, point_y)
         res2=self.getlinevalue(2,point_x, point_y)
@@ -246,16 +247,19 @@ class ArTracker(object):
         else:
             return False
     
-    
-
     def click_point_Cb(self,msg):
+        #test if clicked point is in FOV, return true if the point is in FOV
         rospy.loginfo("clicked_point")
         result = self.Is_inFOV_point(msg.point)
         rospy.loginfo("fov test result: %d  ",result)
 
-
-
     def robot_pose_Cb(self, msg):
+        #self_robot_pose[0] = robot_position_x
+        #self_robot_pose[1] = robot_position_y
+        #self_robot_pose[2] = robot_theta_yaw
+        #self_robot_pose[3] = head_pan_angle
+        #self_robot_pose[4] = head_tilt_angle
+
         self.robot_pose[0]=msg.pose.position.x
         self.robot_pose[1]=msg.pose.position.y
         robot_orientation=msg.pose.orientation
@@ -264,14 +268,36 @@ class ArTracker(object):
         orientation_list=[robot_orientation.x, robot_orientation.y, robot_orientation.z,robot_orientation.w]
         roll,pitch,yaw=euler_from_quaternion(orientation_list)
         self.robot_pose[2]=yaw
-        # robot_yaw=msg.:
-
 
     def joint_state_Cb(self, msg):
+        #self_robot_pose[3] = head_pan_angle
+        #self_robot_pose[4] = head_tilt_angle
         self.robot_pose[3]=msg.position[9]
         self.robot_pose[4]=msg.position[10]
-        # rospy.loginfo("tilt joint: %.2lf",self.robot_pose[3])
 
+    def generate_z_samples(self, num):
+        sample_num=num
+        x_distance_bound=1.0;
+        y_distance_bound=0.7;
+        camera_ori = self.robot_pose[2]+self.robot_pose[3]
+
+        #generate random position from robot
+        self.meas_samples=np.empty((num,3))
+        self.meas_samples[:,0]=np.random.uniform(self.robot_pose[0]-distance_bound, self.robot_pose[0]+distance_bound,num)
+        self.meas_samples[:,1]=np.random.uniform(self.robot_pose[1]-y_distance_bound, self.robot_pose[1]+y_distance_bound,num)
+        self.meas_samples[:,2]=np.random.uniform(camera_ori-math.pi/2,camera_ori+math.pi/2,num)
+
+        #generate pose_array_from sampled poses
+        meas_sampleposes=PoseArray()
+        for i in range(len(self.meas_samples)):
+            test_quat= quaternion_from_euler(0,0,self.meas_samples[i,2])
+            meas_sample_pose=Pose(Point(self.meas_samples[i,0],self.meas_samples[i,1],self.target_z),Quaternion(test_quat[0],test_quat[1],test_quat[2],test_quat[3]))
+            meas_sampleposes.poses.append(meas_sample_pose)
+        
+        #publish posearray message
+        meas_sampleposes.header.stamp=rospy.Time.now()
+        meas_sampleposes.header.frame_id='map'
+        self.sample_meas_pub.publish(meas_sampleposes)
         
 
     def Estimate_Filter(self):
@@ -414,6 +440,8 @@ class ArTracker(object):
         # rospy.loginfo("last statement in estimatefilter")
         self.last_callbacktime=rospy.get_time()
 
+    def evaluate_meas_samples(self):
+        #observation function from updated particlessampled zv
    
 
     def visualizeparticles(self):
@@ -490,23 +518,13 @@ class ArTracker(object):
                 self.my_particle.particles[i,1]=self.avg_y+uniform(-0.2,0.2)
 
 
-                
-        # for x_particle, y_particle in self.my_particle.particles.astype(float):
-            # if self.Is_inFOV(x_particle,y_particle)==True:
-                # x_particle=0.0
-                # y_particle=1.0
-                # x_particle=self.avg_x+uniform(-0.2,0.2)
-                # y_particle=self.avg_y+uniform(-0.2,0.2)
-
-       
-	
-
     def listener(self,wait=0.0):
         # rospy.spin()
         while not rospy.is_shutdown():
             self.rejectparticles()
             self.Estimate_Filter()
             # self.filter_by_Occgrids()
+            self.generate_z_samples(10)
             self.visualizeparticles()
             cur_time=rospy.get_time()
             duration = cur_time -self.last_callbacktime
@@ -516,10 +534,6 @@ class ArTracker(object):
             else:
                 self.search_mode=0
             
-            # test_point_x=0.56
-            # test_point_y=-0.56
-            # res=self.Is_inFOV(test_point_x,test_point_y)
-            # rospy.loginfo("result: %d",res )
             
             # rospy.spinOnce()
             rospy.Rate(2).sleep()
@@ -530,9 +544,4 @@ if __name__ == '__main__':
 	# print("Initialize node")
         tracker_manager = ArTracker(sys.argv[1] if len(sys.argv) >1 else 0.0)
 	tracker_manager.listener()	
-        # while not rospy.is_shut_down():
-            # ArTracker.visualizeparticles()
-            # print "hello"
-            # rospy.sleep(1.0)
-        
 
