@@ -106,6 +106,10 @@ class ArTracker(object):
         self.pcl_fov_pub=rospy.Publisher("/particle_samples_fov",PointCloud2,queue_size=50)
 
         #Initialization of variables
+        self.s1_particles=[]
+        self.s2_particles=[]
+        self.s1_weights=[]
+        self.s2_weights=[]
         self.context_category=1
         self.search_mode=0
         self.last_callbacktime=rospy.get_time()
@@ -275,7 +279,7 @@ class ArTracker(object):
         self.robot_pose[3]=msg.position[9]
         self.robot_pose[4]=msg.position[10]
 
-    def generate_z_samples(self, num):
+    def generate_q_samples(self, num):
         sample_num=num
         x_distance_bound=1.0;
         y_distance_bound=0.7;
@@ -440,7 +444,7 @@ class ArTracker(object):
         # rospy.loginfo("last statement in estimatefilter")
         self.last_callbacktime=rospy.get_time()
 
-    def evaluate_meas_samples(self):
+    # def evaluate_meas_samples(self):
         #observation function from updated particlessampled zv
    
 
@@ -475,18 +479,30 @@ class ArTracker(object):
         # print "visualize detected"
         # rospy.loginfo("visualize particles")
     
-    def rejectparticles(self):
+    def decompose_particles(self):
+        #Decompose particles based on the field of view of sampled q_k
         cloud_sets3=[]
         avg_count=0
+        self.s1_weights=[]
         # calculate the particle without FOV
         # obtain average locations of the paritlce that are not in FOV
-        for x_particle, y_particle in self.my_particle.particles.astype(float):
+        for i in range(len(self.my_particle.particles)):
+            x_particle = self.my_particle.particles[i,0]
+            y_particle = self.my_particle.particles[i,1]
             if self.Is_inFOV(x_particle,y_particle)==False:
                 self.avg_x+=x_particle
                 self.avg_y+=y_particle
                 avg_count=avg_count+1;
-                # rospy.loginfo("x: %.2lf, y: %.2lf", x_particle,y_particle)
                 cloud_sets3.append([x_particle,y_particle,0.9])
+                self.s1_weights.append(self.my_particles.weights[i])
+
+        # for x_particle, y_particle in self.my_particle.particles.astype(float):
+            # if self.Is_inFOV(x_particle,y_particle)==False:
+                # self.avg_x+=x_particle
+                # self.avg_y+=y_particle
+                # avg_count=avg_count+1;
+                # rospy.loginfo("x: %.2lf, y: %.2lf", x_particle,y_particle)
+                # cloud_sets3.append([x_particle,y_particle,0.9])
                 
         if avg_count<30:
             return
@@ -499,10 +515,18 @@ class ArTracker(object):
             particle_pcl3=pcl2.create_cloud_xyz32(header,cloud_sets3)
             self.pcl_fov_pub.publish(particle_pcl3)
         
+        self.s1_particles.np.empty(len(cloud_sets3),2)
+        for i in range(len(cloud_sets3)):
+            self.s1_particles[i,0]=cloud_sets3[i][0]
+            self.s1_particles[i,1]=cloud_sets3[i][1]
 
+        #Here we update positions 
+
+        #get average position data from s1
         self.avg_x=self.avg_x/avg_count;
         self.avg_y=self.avg_y/avg_count;
 
+        #calculate
         avg_pose=PoseStamped()
         avg_pose.pose=Pose(Point(self.avg_x,self.avg_y,self.target_z),Quaternion(0,0,0,1))
         avg_pose.header.stamp=rospy.Time.now()
@@ -510,21 +534,29 @@ class ArTracker(object):
         self.avg_point_pub.publish(avg_pose)
 
         #update interior particles in my_particles
-        for i in range(len(self.my_particle.particles)):
-            x_particle = self.my_particle.particles[i,0]
-            y_particle = self.my_particle.particles[i,1]
-            if self.Is_inFOV(x_particle,y_particle)==True:
-                self.my_particle.particles[i,0]=self.avg_x+uniform(-0.2,0.2)
-                self.my_particle.particles[i,1]=self.avg_y+uniform(-0.2,0.2)
+        # for i in range(len(self.my_particle.particles)):
+            # x_particle = self.my_particle.particles[i,0]
+            # y_particle = self.my_particle.particles[i,1]
+            # if self.Is_inFOV(x_particle,y_particle)==True:
+                # self.my_particle.particles[i,0]=self.avg_x+uniform(-0.2,0.2)
+                # self.my_particle.particles[i,1]=self.avg_y+uniform(-0.2,0.2)
 
+    def evaluate_q_samples(self):
+        #should update weights of s1, s2
+        #sample(z|x)*skskskskjk
+        
+
+    def resample_from_s1(self):
+        
 
     def listener(self,wait=0.0):
         # rospy.spin()
         while not rospy.is_shutdown():
-            self.rejectparticles()
             self.Estimate_Filter()
+            self.decompose_particles()
             # self.filter_by_Occgrids()
-            self.generate_z_samples(10)
+            self.generate_q_samples(10)
+            self.evaluate_q_samples()
             self.visualizeparticles()
             cur_time=rospy.get_time()
             duration = cur_time -self.last_callbacktime
