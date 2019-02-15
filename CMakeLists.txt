@@ -10,11 +10,13 @@ find_package(catkin
     message_generation
     control_msgs
     actionlib_msgs
+    actionlib
     pcl_ros
     pcl_conversions
     people_msgs
     octomap_ros
     octomap_msgs
+    tmc_yolo2_ros
 )
 
 find_package(PCL 1.7 REQUIRED)

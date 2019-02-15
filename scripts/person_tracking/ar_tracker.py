@@ -22,6 +22,7 @@
 
 import cv2
 import roslib
+import actionlib
 import sys
 import rospy
 import random
@@ -35,6 +36,8 @@ from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import JointState
 import sensor_msgs.point_cloud2 as pcl2
 
+import tf.transformations
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import PoseStamped
@@ -77,6 +80,8 @@ class ArTracker(object):
         self.static_map=OccupancyGrid()
         self.meas_sample_num=30
         self.meas_samples=np.empty((self.meas_sample_num,3))
+        self.last_target_pose=np.empty((3,1))
+        self.last_navitime=0
 
         self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
         self.sample_meas_pub=rospy.Publisher("/measurements_sample",PoseArray,queue_size=30)
@@ -84,6 +89,7 @@ class ArTracker(object):
         self.opt_pose_pub=rospy.Publisher("/opt_pose",PoseStamped,queue_size=30)
         self.head_command_pub=rospy.Publisher('desired_head_pan',Float32,queue_size=10)
 
+        self.navi_cli = actionlib.SimpleActionClient('/move_base/move', MoveBaseAction)
 
         #Declare for subscribing rostopics
         posearray_topic="/ar_tracker_measurements"
@@ -96,6 +102,8 @@ class ArTracker(object):
 	rospy.Subscriber(clicked_point_topic, PointStamped, self.click_point_Cb)
         octomap_topic="/octomap_binary"
 	# rospy.Subscriber(octomap_topic, Octomap, self.octomap_Cb)
+        yolo_topic="/yolo/detections"
+        # rospy.Subscriber(yolo_topic, Detections, self.octomap_Cb)
         
         map_topic="/projected_map"
         rospy.Subscriber(map_topic, OccupancyGrid, self.map_Cb)
@@ -116,6 +124,7 @@ class ArTracker(object):
         self.s2_weights=[]
         self.context_category=1
         self.search_mode=0
+        self.navi_mode=0
         self.last_callbacktime=rospy.get_time()
         self.context_activate=0
         self.duration=0
@@ -123,7 +132,7 @@ class ArTracker(object):
         self.target_z=0.7
         self.avg_x=0
         self.avg_y=0
-        self.last_target_pose=np.empty((3,1))
+        self.semantic_targetlocation=''
 
     # def octomap_Cb(self,msg):
         # rospy.loginfo("octomap callback")
@@ -136,6 +145,17 @@ class ArTracker(object):
         
     def map_Cb(self,msg):
         self.dynamic_map = msg
+
+    def check_obsb_dynamic(self,pos_x,pos_y):
+        if self.map_received==False:
+           return False
+        map_idx=self.Coord2CellNum(pos_x,pos_y)
+        # rospy.loginfo("map idx : %d ", map_idx )
+
+        if(self.dynamic_map.data[map_idx]>20):
+            return True
+        else:
+            return False
 
 
     def check_obsb(self,pos_x,pos_y):
@@ -151,6 +171,33 @@ class ArTracker(object):
             return True
         else:
             return False
+
+
+    def navigation_action(self,goal_x,goal_y,goal_yaw):
+        pose = PoseStamped()
+        pose.header.stamp = rospy.Time.now()
+        pose.header.frame_id = "map"
+        pose.pose.position = Point(goal_x, goal_y, 0)
+        quat = tf.transformations.quaternion_from_euler(0, 0, goal_yaw)
+        pose.pose.orientation = Quaternion(*quat)
+
+        goal = MoveBaseGoal()
+        goal.target_pose = pose
+
+        # send message to the action server
+        self.navi_cli.send_goal(goal)
+
+        # wait for the action server to complete the order
+        self.navi_cli.wait_for_result()
+
+        # print result of navigation
+        result_action_state = self.navi_cli.get_state()
+
+        self.last_navitime=rospy.get_time()
+
+        return result_action_state 
+
+
 
     def Coord2CellNum(self, pos_x, pos_y):
         #calculate dynamic map index number from position information
@@ -311,7 +358,7 @@ class ArTracker(object):
 
     def generate_q_samples(self, num):
         sample_num=num
-        x_distance_bound=0.7;
+        x_distance_bound=1.2;
         y_distance_bound=0.5;
         # rospy.loginfo("robot pose_theta: %.3lf, robot pose_y: %.3lf", self.robot_pose[2], self.robot_pose[3])
         camera_ori = self.robot_pose[2]+self.robot_pose[3]
@@ -330,6 +377,7 @@ class ArTracker(object):
         self.meas_samples[:,0]=np.random.uniform(self.robot_pose[0]-x_distance_bound, self.robot_pose[0]+x_distance_bound,num)
         self.meas_samples[:,1]=np.random.uniform(self.robot_pose[1]-y_distance_bound, self.robot_pose[1]+y_distance_bound,num)
         random_theta=camera_ori+np.random.uniform(-math.pi/3,math.pi/3,num)
+
         # print "camera ori", camera_ori
         # print "math.pi/2",math.pi/2
         # print "random_theta",random_theta
@@ -416,8 +464,8 @@ class ArTracker(object):
                 x_particle = self.my_particle.particles[i,0]
                 y_particle = self.my_particle.particles[i,1]
                 if self.check_obsb(x_particle, y_particle)==True:
-                    self.my_particle.particles[i,0]=self.last_target_pose[0]+uniform(-0.1,0.1)
-                    self.my_particle.particles[i,1]=self.last_target_pose[1]+uniform(-0.1,0.1)
+                    self.my_particle.particles[i,0]=self.last_target_pose[0]+3*uniform(-0.1,0.1)
+                    self.my_particle.particles[i,1]=self.last_target_pose[1]+3*uniform(-0.1,0.1)
 
             
         
@@ -498,6 +546,7 @@ class ArTracker(object):
         self.Update_Measurement_Filter(x_center,y_center)
         # rospy.loginfo("last statement in estimatefilter")
         self.last_callbacktime=rospy.get_time()
+
 
         self.last_target_pose[0]=x_center
         self.last_target_pose[1]=y_center
@@ -622,9 +671,9 @@ class ArTracker(object):
             particle_countset.append(particle_count)
 
                     
-        print "expected_entropy", expected_entropy
+        # print "expected_entropy", expected_entropy
         sorted_entropy = sorted(((v,i) for i, v in enumerate(expected_entropy)),reverse=True)
-        rospy.loginfo("maximum value: %.4lf,  index: %d", sorted_entropy[0][0], sorted_entropy[0][1])
+        # rospy.loginfo("maximum value: %.4lf,  index: %d", sorted_entropy[0][0], sorted_entropy[0][1])
         max_idx=sorted_entropy[0][1]
 
         selected_pose=PoseStamped()
@@ -642,18 +691,35 @@ class ArTracker(object):
             diff_angle=0.6
         elif diff_angle<-1.0:
             diff_angle=-0.6
-        elif abs(diff_angle)<0.25:
+        elif abs(diff_angle)<0.3:
             return
         
+        #publish the desired joint angles
         desired_pan_joint = Float32()
         desired_pan_joint.data= self.robot_pose[3]+diff_angle*0.6
         self.head_command_pub.publish(desired_pan_joint)
+
+        distance =0.0
+        distance +=math.pow(self.robot_pose[0]-selected_pose.pose.position.x,2)
+        distance +=math.pow(self.robot_pose[1]-selected_pose.pose.position.y,2)
+        distance = math.sqrt(distance)
+        # distance = np.linalg.norm(self.particles - position, axis=1)
+        #call action client
+        if self.navi_mode==1:
+            if distance>0.5:
+                self.navigation_action(selected_pose.pose.position.x, selected_pose.pose.position.y, desird_head_angle)
+                self.navi_mode=0
+            else:
+                rospy.loginfo("distance limit")
+
+
 
     def evaluate_q_samples(self):
         #observation function from updated particlessampled zv
         #should calculate f(q)
         #should update weights of s1, s2
-        #sample(z|x)*skskskskjk
+        #sample(z|x)*skskskskj,2k
+        
         self.get_expected_entropy()
         
     # def resample_from_s1(self):
@@ -670,11 +736,17 @@ class ArTracker(object):
             self.visualizeparticles()
             cur_time=rospy.get_time()
             duration = cur_time -self.last_callbacktime
+            navi_duration = cur_time -self.last_navitime
             # rospy.loginfo("duration : %lf", duration)
             if duration>6:
                 self.search_mode=1
             else:
                 self.search_mode=0
+
+            if navi_duration>10 :
+                self.navi_mode=1
+            else:
+                self.navi_mode=0
             
             
             # rospy.spinOnce()
