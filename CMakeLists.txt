@@ -16,7 +16,8 @@ find_package(catkin
     people_msgs
     octomap_ros
     octomap_msgs
-    tmc_yolo2_ros
+    #tmc_yolo2_ros
+    villa_yolocloud
 )
 
 find_package(PCL 1.7 REQUIRED)
