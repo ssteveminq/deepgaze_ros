@@ -18,6 +18,7 @@ find_package(catkin
     octomap_msgs
     #tmc_yolo2_ros
     villa_yolocloud
+    darknet_ros_msgs
 )
 
 find_package(PCL 1.7 REQUIRED)
@@ -34,6 +35,7 @@ add_service_files(
 add_action_files(
   DIRECTORY action
   FILES GazeRecog.action
+  MultiTrack.action
 )
 
 generate_messages(
