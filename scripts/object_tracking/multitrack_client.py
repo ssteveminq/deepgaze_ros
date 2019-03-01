@@ -16,7 +16,7 @@ def mains():
     client.wait_for_server()
     goal = deepgaze_ros.msg.MultiTrackGoal()
     goal.idset.data.append(0)
-    goal.idset.data.append(1)
+    # goal.idset.data.append(1)
     client.send_goal(goal)
     client.wait_for_result()
     rospy.loginfo("start action")

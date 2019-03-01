@@ -28,26 +28,39 @@ import roslib
 import sys
 import rospy
 import numpy as np
+import math
 from cv_bridge import CvBridge, CvBridgeError
 import select, termios, tty
 from sensor_msgs.msg import Image
-from std_msgs.msg import String
+from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import JointState
+import sensor_msgs.point_cloud2 as pcl2
 from os import listdir
 import os
 from os.path import isfile, join, exists
-import tensorflow as tf
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+# import tensorflow as tf
 
 import actionlib
 from deepgaze_ros.msg import *
+from std_msgs.msg import String
+from std_msgs.msg import Float32
 from std_msgs.msg import Float32MultiArray, Int8MultiArray
+from nav_msgs.msg import OccupancyGrid
+from numpy.random import uniform
 from deepgaze.color_detection import BackProjectionColorDetector
 from deepgaze.mask_analysis import BinaryMaskAnalyser
 from deepgaze.motion_tracking import ParticleFilter
-from deepgaze_ros.srv import learn_clothes, learn_clothesRequest, learn_clothesResponse
+from geometry_msgs.msg import Pose, PoseStamped, PoseArray, Point, Quaternion
+# from geometry_msgs.msg import Quaternion
+# from deepgaze_ros.srv import learn_clothes, learn_clothesRequest, learn_clothesResponse
 from villa_yolocloud.msg import BboxInfo
 from villa_yolocloud.msg import ObjectInfo
 from villa_yolocloud.msg import ObjectInfoArray
 from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
+from deepgaze.object3d_tracking import ParticleFilter3D
+from tf import TransformListener
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 
 class ObjectTracker(object):
@@ -59,20 +72,42 @@ class ObjectTracker(object):
         self._as = actionlib.SimpleActionServer(self._action_name, deepgaze_ros.msg.MultiTrackAction, execute_cb=self.execute_cb, auto_start = False)
         self._as.start()
 
+        self.last_navitime=rospy.get_time()
+        self.search_mode=0
+        self.map_received=False
+        self.navi_mode=0
+        self.target_modes=[]
+        self.last_observations=[]
+        self.last_targetlocations=[]
+        self.last_callbacktime=rospy.get_time()
+        self.context_activate=0
+
+        self.robot_pose=np.zeros((5,1))
         self.Init_track=False
         self.target_ids=[]
         self.target_strings=[]
         self.trackers=[]
+        self.trackers3d=[]
         self.templete_trackers=[]
         self.my_back_detectors=[]
         self.mask_analysers=[]
-        # self.color_track=False
-        self.color_track=True
+        # self.frame=[]
+        self.color_track=False
+        # self.color_track=True
         self.infoarray = ObjectInfoArray()
         self.image_pub = rospy.Publisher("objet_tracker/particle_filter",Image,queue_size=10)
         self.objimage_pub1 = rospy.Publisher("object1_photo",Image,queue_size=10)
         self.objimage_pub2 = rospy.Publisher("object2_photo",Image,queue_size=10)
         self.objimage_pub3 = rospy.Publisher("object3_photo",Image,queue_size=10)
+
+        self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
+        self.sample_meas_pub=rospy.Publisher("/measurements_sample",PoseArray,queue_size=30)
+        self.avg_point_pub=rospy.Publisher("/avg_point",PoseStamped,queue_size=30)
+        self.opt_pose_pub=rospy.Publisher("/opt_pose",PoseStamped,queue_size=30)
+        self.head_command_pub=rospy.Publisher('desired_head_pan',Float32,queue_size=10)
+        self.pcl_pub=rospy.Publisher("/particle_samples",PointCloud2,queue_size=50)
+
+
         # rospy.Service('/relearn_clothes', learn_clothes, self.learning_dataset)
         dirname = os.path.dirname(__file__)
         self.known_folder = dirname
@@ -80,26 +115,52 @@ class ObjectTracker(object):
         # self.filename1=self.known_folder+"/object2.png"
         self.filename1=self.known_folder+"/clothes0.png"
         template = cv2.imread(self.filename1) #Load the image
-        # self.my_mask_analyser = BinaryMaskAnalyser()
-        # self.my_back_detector = BackProjectionColorDetector()
-        # self.my_back_detector.setTemplate(template) #Set the template 
-        self.tot_particles =1000
+
+        #variables for particlefilters
+        self.tot_particles =2000
+        self.tot_particles3d =500
         self.std=20;
-        # self.my_particle = ParticleFilter(480, 640, tot_particles)
-        # self.my_particle = ParticleFilter(640, 480, tot_particles)
+        self.std3d=0.05;
         self.noise_probability = 0.10 #in range [0, 1.0]
         self.save_time = rospy.get_time()
+        self.s1_particles=[]
+        self.s2_particles=[]
+        self.s1_weights=[]
+        self.s2_weights=[]
+        self.target_z=0.7
+        self.avg_x=0
+        self.avg_y=0
 
+        self.dynamic_map=OccupancyGrid()
+        self.static_map=OccupancyGrid()
+        self.meas_sample_num=30
+        self.meas_samples=np.empty((self.meas_sample_num,3))
+
+
+
+
+        self.bridge = CvBridge()
         # image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
-        image_topic = "/camera/rgb/image_color"
+        image_topic = "/hsrb/head_rgbd_sensor/rgb/image_raw"
+        # image_topic = "/camera/rgb/image_color"
 	rospy.Subscriber(image_topic, Image, self.image_callback)
         objinfo_topic = "/objects_info"
 	rospy.Subscriber(objinfo_topic, ObjectInfoArray, self.object_callback)
         darknet_topic = "/darknet_ros/bounding_boxes"
 	rospy.Subscriber(darknet_topic, BoundingBoxes, self.yolo_callback)
+        robot_pose_topic='global_pose'
+	rospy.Subscriber(robot_pose_topic, PoseStamped, self.robot_pose_Cb)
+        jointstates_topic='hsrb/joint_states'
+	rospy.Subscriber(jointstates_topic, JointState, self.joint_state_Cb)
+        map_topic="/projected_map"
+        rospy.Subscriber(map_topic, OccupancyGrid, self.map_Cb)
+        
+        staticmap_topic="/static_obstacle_map_ref"
+        rospy.Subscriber(staticmap_topic, OccupancyGrid, self.staticmap_Cb)
+ 
+        self.navi_cli = actionlib.SimpleActionClient('/move_base/move', MoveBaseAction)
+        # self.navi_cli.wait_for_server()
 
-        self.filter_result_pub=rospy.Publisher('/object_tracker/positions',Float32MultiArray,queue_size=10)
-        self.bridge = CvBridge()
 
     def execute_cb(self, goal):
         for id in goal.idset.data:
@@ -109,9 +170,19 @@ class ObjectTracker(object):
                 if self.infoarray.objectinfos[index].id == id:
                     self.target_strings.append(self.infoarray.objectinfos[index].label)
                     rospy.loginfo("tracking object label : %s",self.infoarray.objectinfos[index].label)
+                    last_targetlocation = self.infoarray.objectinfos[index].point
+                    self.last_targetlocations.append(last_targetlocation)
 
             indiv_particle=ParticleFilter(480, 640, self.tot_particles)
             self.trackers.append(indiv_particle)
+
+            indiv_particle3d=ParticleFilter3D(10, 10, self.tot_particles3d)
+            self.trackers3d.append(indiv_particle3d)
+            #TODO: how we can define context? multiple context? 
+            # self.context_particle = ParticleFilter3D(10,10,tot_particles)
+            self.last_observations.append(rospy.get_time()) #update last obsservation time for each object
+            self.target_modes.append(0) #0: tracking mode 1: searching mode
+ 
 
         rospy.loginfo("tracking initiated!!")
         self.Init_track=True
@@ -130,6 +201,67 @@ class ObjectTracker(object):
 
         self._as.set_succeeded()
 
+    def staticmap_Cb(self,msg):
+        self.static_map = msg
+        self.map_received=True
+        
+    def map_Cb(self,msg):
+        self.dynamic_map = msg
+
+
+
+    def navigation_action(self,goal_x,goal_y,goal_yaw):
+        pose = PoseStamped()
+        pose.header.stamp = rospy.Time.now()
+        pose.header.frame_id = "map"
+        pose.pose.position = Point(goal_x, goal_y, 0)
+        quat = quaternion_from_euler(0, 0, goal_yaw)
+        pose.pose.orientation = Quaternion(*quat)
+
+        goal = MoveBaseGoal()
+        goal.target_pose = pose
+
+        # send message to the action server
+        self.navi_cli.send_goal(goal)
+
+        # wait for the action server to complete the order
+        self.navi_cli.wait_for_result()
+
+        # print result of navigation
+        result_action_state = self.navi_cli.get_state()
+        self.last_navitime=rospy.get_time()
+
+        return result_action_state 
+
+
+
+    def robot_pose_Cb(self, msg):
+        #self_robot_pose[0] = robot_position_x
+        #self_robot_pose[1] = robot_position_y
+        #self_robot_pose[2] = robot_theta_yaw
+        #self_robot_pose[3] = head_pan_angle
+        #self_robot_pose[4] = head_tilt_angle
+
+        self.robot_pose[0]=msg.pose.position.x
+        self.robot_pose[1]=msg.pose.position.y
+        robot_orientation=msg.pose.orientation
+
+        #get yaw angle from quarternion
+        orientation_list=[robot_orientation.x, robot_orientation.y, robot_orientation.z,robot_orientation.w]
+        roll,pitch,yaw=euler_from_quaternion(orientation_list)
+        self.robot_pose[2]=yaw
+        # rospy.loginfo("global theta: %.3lf", self.robot_pose[2])
+
+    def joint_state_Cb(self, msg):
+        #self_robot_pose[3] = head_pan_angle
+        #self_robot_pose[4] = head_tilt_angle
+        self.robot_pose[3]=msg.position[9]
+        self.robot_pose[4]=msg.position[10]
+        # rospy.loginfo("head angle: %.3lf", self.robot_pose[3])
+
+
+
+
     def learning_dataset(self,req):
         template = cv2.imread(self.filename1) #Load the image
         self.my_mask_analyser = BinaryMaskAnalyser()
@@ -145,12 +277,51 @@ class ObjectTracker(object):
     def yolo_callback(self,msg):
         self.bounding_boxes = msg.bounding_boxes
 
+        #set target_observations to False
+        # self.last_observations=[]
+        target_observations=[]
+        for id in range(len(self.target_ids)):
+            target_observations.append(False)
+            
+        
         if self.Init_track:
             for bbox in self.bounding_boxes:
                 for id in range(len(self.target_ids)):
                     if bbox.Class == self.target_strings[id]:
                         self.update_trackers(id,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
-                        self.trackers[id].resample()
+                        target_observations[id]=True
+                        self.last_observations[id]=rospy.get_time()
+                        # self.trackers[id].resample()
+
+        #check if there didn't come obsrvations
+
+    def Update_Measurement_Filter3D(self,idx, x_center, y_center):
+        #Update the filter with the last measurements
+        
+        #add noises to measurements
+        coin = np.random.uniform()
+        if(coin >= 1.0-self.noise_probability): 
+            x_noise = float(np.random.uniform(-0.15, 0.15))
+            y_noise = float(np.random.uniform(-0.15, 0.15))
+                # z_noise = int(np.random.uniform(-300, 300))
+        else: 
+            x_noise = 0
+            y_noise = 0
+        x_center += x_noise
+        y_center += y_noise
+
+ 
+        self.trackers3d[idx].update(x_center, y_center)
+        # print self.trackers3d[idx.weights
+        current_entropy=self.trackers3d[idx].get_entropy()
+        weight_var=np.var(100*self.trackers3d[idx].weights, dtype=np.float64)
+        # rospy.loginfo("variance of particles before: %.6lf, entropy: %.3lf",weight_var,current_entropy)
+        self.trackers3d[idx].resample('residual')
+        # self.trackers3d[idx.resample('residual')
+        weight_var=np.var(100*self.trackers3d[idx].weights, dtype=np.float64)
+        # current_entropy=self.trackers3d[idx].get_entropy()
+        # weight_var=np.var(self.my_particle.weights)
+        # rospy.loginfo("variance of particles after: %.6lf, entropy: %.3lf",weight_var,current_entropy)
 
 
     def object_callback(self,msg):
@@ -160,21 +331,30 @@ class ObjectTracker(object):
             for id in range(len(self.target_ids)):
                 for index in range(len(self.infoarray.objectinfos)):
                     if self.infoarray.objectinfos[index].id == self.target_ids[id]:
+                        #updating 3d point 
+                        self.last_targetlocations[index]=self.infoarray.objectinfos[index].point
+                        #updating bounding box 
                         bbox = self.infoarray.objectinfos[index].bbox
-                        x_center=bbox.x+bbox.width/2
-                        y_center=bbox.y+bbox.height/2
-                        self.update_trackers(id,bbox.x,bbox.x+bbox.width,bbox.y,bbox.y+bbox.height)
-                        self.trackers[id].resample()
+                        # self.target_observations[id]=True
+                        self.last_observations[id]=rospy.get_time()
+                        self.Estimate_Filter3D()
+                        self.Update_Measurement_Filter3D(id, self.infoarray.objectinfos[index].point.x,
+                                                         self.infoarray.objectinfos[index].point.y)
 
-     
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(self.frame, "bgr8"))
+                        # x_center=bbox.x+bbox.width/2
+                        # y_center=bbox.y+bbox.height/2
+                        # self.update_infotrackers(id,bbox.x,bbox.x+bbox.width,bbox.y,bbox.y+bbox.height)
+                        # self.trackers[id].resample()
+
+
+            # self.image_pub.publish(self.bridge.cv2_to_imgmsg(self.rvizframe, "bgr8"))
 
 
     def crop_objects(self, image_data):
         image_batch = image_data
         objfiles = []
         for index in range(len(self.infoarray.objectinfos)):
-            for id in range(len(self.target_ids)):
+            for id in range(len(self.target_self.ids)):
                 for index in range(len(self.infoarray.objectinfos)):
                     if self.infoarray.objectinfos[index].id == self.target_ids[id]:
                         cut_x=int(self.infoarray.objectinfos[index].bbox.x)
@@ -234,17 +414,9 @@ class ObjectTracker(object):
         
         try:
             self.frame   = self.bridge.imgmsg_to_cv2(msg,"bgr8")
-            objectsphotos= self.crop_objects(self.frame)
+            self.rvizframe   = self.frame
+            # objectsphotos= self.crop_objects(self.frame)
 
-
-            # if len(objectsphotos)>0:
-                # self.objimage_pub1.publish(self.bridge.cv2_to_imgmsg(objectsphotos[0], "bgr8"))
-            
-            # if len(objectsphotos)>1:
-                # self.objimage_pub2.publish(self.bridge.cv2_to_imgmsg(objectsphotos[1], "bgr8"))
-
-            # if len(objectsphotos)>3:
-                # self.objimage_pub3.publish(self.bridge.cv2_to_imgmsg(objectsphotos[3], "bgr8"))
             if self.color_track & self.Init_track:
                 for id in range(len(self.target_ids)):
                     try:
@@ -280,12 +452,6 @@ class ObjectTracker(object):
                         self.templete_trackers[id].update(x_center, y_center)
                         self.templete_trackers[id].resample()
 
-                #publish_filter result
-                # filter_msg=Float32MultiArray()
-                # filter_msg.data.append(x_estimated)
-                # filter_msg.data.append(y_estimated)
-                # self.filter_result_pub.publish(filter_msg)
-
                #Update the filter with the last measurements
                 # self.my_particle.update(x_center, y_center)
 
@@ -298,6 +464,7 @@ class ObjectTracker(object):
                         for id in range(len(self.target_ids)):
                             if bbox.Class == self.target_strings[id]:
                                 self.update_trackers(id,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
+                                
 
                     # self.update_trackers(id,self.yolo_bbs[id].xmin, self.yolo_bbs[id].xmax, self.yolo_bbs[id].ymin, self.yolo_bbs[id].ymax)
                         # if self.infoarray.objectinfos[index].id == self.target_ids[id]:
@@ -311,17 +478,31 @@ class ObjectTracker(object):
 
                #Writing in the output file
                # out.write(frame)
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(self.frame, "bgr8"))
+            # self.image_pub.publish(self.bridge.cv2_to_imgmsg(self.frame, "bgr8"))
 
 
-            # cv2.imshow("image_window", frame)
-            # cv2.imshow('Mask', frame_mask) #show on window
-            # cv2.waitKey(3)
-            # if cv2.waitKey(3) & 0xFF == ord('q'):
-                # break #Exit when Q is pressed
+            cv2.imshow("image_window", self.frame)
+            cv2.waitKey(3)
+            if cv2.waitKey(3) & 0xFF == ord('q'):
+                exit()
+               # break #Exit when Q is pressed
 
         except CvBridgeError, e:
             print(e)
+
+
+    def update_infotrackers(self, idx, bbox_xmin, bbox_xmax, bbox_ymin, bbox_ymax):
+        x_meas = bbox_xmin+(bbox_xmax-bbox_xmin)/2
+        y_meas = bbox_ymin+(bbox_ymax-bbox_ymin)/2
+        self.trackers[idx].predict(x_velocity=0, y_velocity=0, std=self.std)
+        self.trackers[idx].drawParticles(self.rvizframe)
+        x_estimated, y_estimated, _, _ = self.trackers[idx].estimate()
+        cv2.circle(self.rvizframe, (x_estimated, y_estimated), 3, [255,0,0], 5) #GREEN dot
+        self.trackers[idx].update(x_meas, y_meas)
+        cv2.rectangle(self.rvizframe, (int(bbox_xmin),int(bbox_ymin)), (int(bbox_xmax),int(bbox_ymax)), [0,255,0], 2) #BLUE rect
+        #
+
+
 
     def update_trackers(self, idx, bbox_xmin, bbox_xmax, bbox_ymin, bbox_ymax):
         x_meas = bbox_xmin+(bbox_xmax-bbox_xmin)/2
@@ -332,11 +513,443 @@ class ObjectTracker(object):
         cv2.circle(self.frame, (x_estimated, y_estimated), 3, [0,255,0], 5) #GREEN dot
         self.trackers[idx].update(x_meas, y_meas)
         cv2.rectangle(self.frame, (int(bbox_xmin),int(bbox_ymin)), (int(bbox_xmax),int(bbox_ymax)), [255,0,0], 2) #BLUE rect
-        # self.trackers[idx].resample()
+        try:
+            self.trackers[idx].resample()
+        except: 
+            rospy.loginfo("resample failed")
+
+    def visualizeparticles(self):
+        
+        cloudsetarray=[]
+        for id in range(len(self.trackers3d)):
+            cloud_sets=[]
+            for x_particle, y_particle in self.trackers3d[id].particles.astype(float):
+                cloud_sets.append([x_particle,y_particle,self.target_z])
+                # rospy.loginfo("x : %.2lf, y : %.2lf ", x_particle, y_particle)
+
+            cloudsetarray.append(cloud_sets)
+        
+        header=std_msgs.msg.Header()
+        header.stamp=rospy.Time.now()
+        header.frame_id='map'
+        particle_pcl=pcl2.create_cloud_xyz32(header,cloudsetarray[0])
+        # print particle_pcl.fields
+        self.pcl_pub.publish(particle_pcl)
+        # print "visualize detected"
+        # rospy.loginfo("visualize particles")
+        # rospy.loginfo("last statement in estimatefilter")
+
+        #----------------visualize context particles------------------------------ 
+        # cloud_sets2=[]
+        # for x_particle2, y_particle2 in self.context_particle.particles.astype(float):
+            # cloud_sets2.append([x_particle2,y_particle2,self.target_z])
+           ## rospy.loginfo("x : %.2lf, y : %.2lf ", x_particle2, y_particle2)
+        
+        ## rospy.loginfo("length of context particle:%d ", len(cloud_sets2))
+        # header=std_msgs.msg.Header()
+        # header.stamp=rospy.Time.now()
+        # header.frame_id='map'
+        # header.frame_id='/world'
+        # particle_pcl2=pcl2.create_cloud_xyz32(header,cloud_sets2)
+        # self.pcl_context_pub.publish(particle_pcl2)
+        #--------------visualize context particles------------------------------ 
+  
+
+
+    def Estimate_Filter3D(self):
+        #Predict the position of the target
+        for id in range(len(self.trackers3d)):
+            self.trackers3d[id].predict(x_velocity=0.05, y_velocity=0.05, std=self.std3d)
+            if self.target_modes[id]==1: # searching mode
+                rospy.loginfo("searching mode for %s", self.target_strings[id])
+                #TODO: context!!!
+
+            x_estimated, y_estimated, _, _ = self.trackers3d[id].estimate()
+
+        # est_pose=PoseStamped()
+        # est_pose.pose=Pose(Point(x_estimated,y_estimated,0.5),Quaternion(0,0,0,1))
+        # est_pose.header.stamp=rospy.Time.now()
+        # est_pose.header.frame_id='map'
+        # self.estimated_point_pub.publish(est_pose)
+
+
+
+    def decompose_particles(self):
+        #Decompose particles based on the field of view of sampled q_k
+        cloud_sets3=[]
+        avg_count=0
+        self.s1_weights=[]
+        # calculate the particle without FOV
+        # obtain average locations of the paritlce that are not in FOV
+        for id in range(len(self.trackers3d)):
+            for i in range(len(self.trackers3d[id].particles)):
+                x_particle = self.trackers3d[id].particles[i,0]
+                y_particle = self.trackers3d[id].particles[i,1]
+                if self.Is_inFOV(x_particle,y_particle,self.robot_pose)==False:
+                    self.avg_x+=x_particle
+                    self.avg_y+=y_particle
+                    avg_count=avg_count+1;
+                    cloud_sets3.append([x_particle,y_particle,0.9])
+                    self.s1_weights.append(self.trackers3d[id].weights[i])
+
+        #If most of partilces are visible, return
+        if avg_count<30:
+            return
+        #for debug ------------------------------------------------
+        # else:
+            # rospy.loginfo("avg count not in FOV:%d", avg_count )
+            # header=std_msgs.msg.Header()
+            # header.stamp=rospy.Time.now()
+            # header.frame_id='map'
+            # particle_pcl3=pcl2.create_cloud_xyz32(header,cloud_sets3)
+            # self.pcl_fov_pub.publish(particle_pcl3)
+        #-----------------------------------------------------------
+        
+        #s1(not fov) particles
+        self.s1_particles=np.empty((len(cloud_sets3),2))
+        for i in range(len(cloud_sets3)):
+            self.s1_particles[i,0]=cloud_sets3[i][0]
+            self.s1_particles[i,1]=cloud_sets3[i][1]
+
+        #Here we update positions 
+
+        #get average position data from s1
+        self.avg_x=self.avg_x/avg_count;
+        self.avg_y=self.avg_y/avg_count;
+
+        #calculate
+        avg_pose=PoseStamped()
+        avg_pose.pose=Pose(Point(self.avg_x,self.avg_y,self.target_z),Quaternion(0,0,0,1))
+        avg_pose.header.stamp=rospy.Time.now()
+        avg_pose.header.frame_id='map'
+        self.avg_point_pub.publish(avg_pose)
+
+        #update interior particles in my_particles
+
+        for id in range(len(self.trackers3d)):
+            if self.target_modes[id]==1: # searching mode
+                for i in range(len(self.trackers3d[id].particles)):
+                    x_particle = self.trackers3d[id].particles[i,0]
+                    y_particle = self.trackers3d[id].particles[i,1]
+                    if self.Is_inFOV(x_particle,y_particle, self.robot_pose)==True:
+                        self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+uniform(-0.2,0.2)
+                        self.trackers3d[id].particles[i,1]=self.last_targetlocations[id].y+uniform(-0.2,0.2)
+
+    def check_obsb_dynamic(self,pos_x,pos_y):
+        if self.map_received==False:
+           return False
+        map_idx=self.Coord2CellNum(pos_x,pos_y)
+        # rospy.loginfo("map idx : %d ", map_idx )
+
+        if(self.dynamic_map.data[map_idx]>20):
+            return True
+        else:
+            return False
+
+
+    def check_obsb(self,pos_x,pos_y):
+        #return True if point collides obstacles
+        if self.map_received==False:
+           return False
+
+
+        map_idx=self.Coord2CellNum_STATIC(pos_x,pos_y)
+        # rospy.loginfo("map idx : %d ", map_idx )
+
+        if(self.static_map.data[map_idx]>20):
+            return True
+        else:
+            return False
+
+    def Coord2CellNum(self, pos_x, pos_y):
+        #calculate dynamic map index number from position information
+        target_Coord=[]
+
+        reference_origin_x=self.dynamic_map.info.origin.position.x
+        reference_origin_y=self.dynamic_map.info.origin.position.y
+
+        temp_x = pos_x-reference_origin_x
+        temp_y = pos_y-reference_origin_y
+
+        target_Coord_x= int(temp_x/self.dynamic_map.info.resolution)
+        target_Coord_y= int(temp_y/self.dynamic_map.info.resolution)
+
+        index= target_Coord_x+self.dynamic_map.info.width*target_Coord_y
+        return index
+
+    def Coord2CellNum_STATIC(self, pos_x, pos_y):
+        #calculate static map index number from position information
+        target_Coord=[]
+
+        reference_origin_x=self.static_map.info.origin.position.x
+        reference_origin_y=self.static_map.info.origin.position.y
+
+        temp_x = pos_x-reference_origin_x
+        temp_y = pos_y-reference_origin_y
+
+        target_Coord_x= int(temp_x/self.static_map.info.resolution)
+        target_Coord_y= int(temp_y/self.static_map.info.resolution)
+
+        index= target_Coord_x+self.static_map.info.width*target_Coord_y
+        return index
+
+    def getlinevalue(self, line_type, input_x, input_y,robot_pos):
+        head_angle = robot_pos[2]
+        theta_1= head_angle-29*math.pi/180.0
+        theta_2= head_angle+29*math.pi/180.0
+        # theta_2= self.robot_pose[2]+self.robot_pose[3]+29*math.pi/180.0
+        slope1 = math.tan(theta_1)
+        slope2 = math.tan(theta_2)
+        mode=0
+        
+        coeff_sign=-1.0
+
+        if (theta_1 < -math.pi/2.0) & (theta_2 > -math.pi/2.0):
+            temp=slope2
+            mode=1
+        elif (theta_1 < math.pi/2.0) & (theta_2 > math.pi/2.0):
+            mode=2
+        elif (theta_1 < -math.pi/2.0) & (theta_2 < -math.pi/2.0):
+            mode=5
+        elif  (theta_2 < -math.pi/2.0):
+            mode=3
+        elif (theta_1 > math.pi/2) & (theta_2 > math.pi/2.0):
+            mode=4
+
+        if line_type==1:
+            slope=slope1
+            if mode==0:
+               coeff_sign=-1.0
+            elif mode==1:
+               coeff_sign=1.0
+            elif mode==2:
+               coeff_sign=-1.0  
+            elif mode==4:
+               coeff_sign=1.0 
+            elif mode==5:
+               coeff_sign=1.0
+
+        elif line_type ==2:
+            slope=slope2
+            if mode==1:
+                coeff_sign=1.0;
+            elif mode==0:
+                coeff_sign=1.0 
+            elif mode==3:
+                coeff_sign=1.0
+        else:
+            rospy.loginfo("linetype is wrong")
+
+        res= slope*(input_x-robot_pos[0])+robot_pos[1]-input_y;
+
+        if res*coeff_sign > 0 :
+            return True
+        else:
+            return False
+
+    def Is_inFOV_point(self, point, test_robot_pos):
+        #return True if point is in FOV
+        test_robot_pose=np.empty((3,1))
+        test_robot_pose[0]=test_robot_pos[0]
+        test_robot_pose[1]=test_robot_pos[1]
+        test_robot_pose[2]=test_robot_pos[2]
+        
+        if len(test_robot_pos)>3:
+            test_robot_pose[2]=self.robot_pose[2]+self.robot_pose[3]
+
+        res1=self.getlinevalue(1,point.x, point.y,test_robot_pose)
+        res2=self.getlinevalue(2,point.x, point.y,test_robot_pose)
+
+        if res1 & res2:
+            return True
+        else:
+            return False
+    
+    def Is_inFOV(self, point_x, point_y,test_robot_pos):
+        #return True if point is in FOV
+
+        test_robot_pose=np.empty((3,1))
+        test_robot_pose[0]=test_robot_pos[0]
+        test_robot_pose[1]=test_robot_pos[1]
+        test_robot_pose[2]=test_robot_pos[2]
+
+        if len(test_robot_pos)>3:
+            test_robot_pose[2]=self.robot_pose[2]+self.robot_pose[3]
+
+        # rospy.loginfo("test_robot_pose: x: %.3lf, y: %.3lf, z:%.3lf", test_robot_pose[0],test_robot_pose[1],test_robot_pose[2])
+
+        res1=self.getlinevalue(1,point_x, point_y,test_robot_pose)
+        res2=self.getlinevalue(2,point_x, point_y,test_robot_pose)
+        if res1 & res2:
+            return True
+        else:
+            return False
+
+
+    def filter_by_Occgrids(self):
+        #based on projected_map from octomap
+        #remove partilces from partilces false-postive
+        if self.map_received:
+            for id in range(len(self.trackers3d)):
+                for i in range(len(self.trackers3d[id].particles)):
+                    x_particle = self.trackers3d[id].particles[i,0]
+                    y_particle = self.trackers3d[id].particles[i,1]
+                    if self.check_obsb(x_particle, y_particle)==True:
+                        self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+3*uniform(-0.1,0.1)
+                        self.trackers3d[id].particles[i,1]=self.last_targetlocations[id]+3*uniform(-0.1,0.1)
+
+    def generate_q_samples(self, num):
+        sample_num=num
+        x_distance_bound=1.2;
+        y_distance_bound=0.5;
+        # rospy.loginfo("robot pose_theta: %.3lf, robot pose_y: %.3lf", self.robot_pose[2], self.robot_pose[3])
+        camera_ori = self.robot_pose[2]+self.robot_pose[3]
+
+        # rospy.loginfo("camera_ori: %.3lf", camera_ori)
+        while camera_ori>2*math.pi:
+            camera_ori-=2*math.pi
+
+        while camera_ori<-2*math.pi:
+            camera_ori+=2*math.pi
+        
+        # rospy.loginfo("camera_ori: %.3lf", camera_ori)
+
+        #generate random position from robot
+        self.meas_samples=np.empty((num,3))
+        self.meas_samples[:,0]=np.random.uniform(self.robot_pose[0]-x_distance_bound, self.robot_pose[0]+x_distance_bound,num)
+        self.meas_samples[:,1]=np.random.uniform(self.robot_pose[1]-y_distance_bound, self.robot_pose[1]+y_distance_bound,num)
+        random_theta=camera_ori+np.random.uniform(-math.pi/3,math.pi/3,num)
+
+        # print "camera ori", camera_ori
+        # print "math.pi/2",math.pi/2
+        # print "random_theta",random_theta
+        self.meas_samples[:,2]=random_theta
+        # self.meas_samples[:,2]=np.random.uniform(camera_ori-math.pi/2,camera_ori+math.pi/2,num)
+
+        #check obstacles 
+        for i in range(len(self.meas_samples)):
+            x_pos=self.meas_samples[i,0]
+            y_pos=self.meas_samples[i,1]
+            count=0
+            while self.check_obsb(x_pos,y_pos)==True | count <500:
+                x_pos=np.random.uniform(self.robot_pose[0]-2*x_distance_bound, self.robot_pose[0]+2*x_distance_bound,1)
+                y_pos=np.random.uniform(self.robot_pose[1]-2*y_distance_bound, self.robot_pose[1]+2*y_distance_bound,1)
+                count=count+1
+            self.meas_samples[i,0]=x_pos
+            self.meas_samples[i,1]=y_pos
+
+
+
+        #generate pose_array_from sampled poses
+        meas_sampleposes=PoseArray()
+        for i in range(len(self.meas_samples)):
+            test_quat= quaternion_from_euler(0,0,self.meas_samples[i,2])
+            meas_sample_pose=Pose(Point(self.meas_samples[i,0],self.meas_samples[i,1],self.target_z),Quaternion(test_quat[0],test_quat[1],test_quat[2],test_quat[3]))
+            meas_sampleposes.poses.append(meas_sample_pose)
+        
+        #publish posearray message
+        meas_sampleposes.header.stamp=rospy.Time.now()
+        meas_sampleposes.header.frame_id='map'
+        self.sample_meas_pub.publish(meas_sampleposes)
+
+
+    def evaluate_q_samples(self):
+        # self.get_expected_entropy()
+        #for each fov, calculated expected number of samples 
+        # expected_entropy=np.empty((len(self.meas_samples),1))
+        # print self.meas_samples
+        expected_entropy=[]
+        particle_countset=[]
+        for i in range(len(self.meas_samples)):
+            entropy_sum=0.0
+            particle_count=0
+            # rospy.loginfo("meas_robot_pose: x: %.3lf, y: %.3lf, z:%.3lf", self.meas_samples[i][0],self.meas_samples[i][1],self.meas_samples[i][2])
+            for j in range(len(self.trackers3d[0].particles)):
+                particle_x=self.trackers3d[0].particles[j,0]
+                particle_y=self.trackers3d[0].particles[j,1]
+                if self.Is_inFOV(particle_x, particle_y,self.meas_samples[i])==True:
+                    # print "self.meas_samples",self.meas_samples[i]
+                    # rospy.loginfo("in field of view")
+                    entropy_sum-=self.trackers3d[0].weights[j]*np.log2(self.trackers3d[0].weights[j])
+                    particle_count+=1
+
+            expected_entropy.append(entropy_sum)
+            particle_countset.append(particle_count)
+
+                    
+        # print "expected_entropy", expected_entropy
+        sorted_entropy = sorted(((v,i) for i, v in enumerate(expected_entropy)),reverse=True)
+        # rospy.loginfo("maximum value: %.4lf,  index: %d", sorted_entropy[0][0], sorted_entropy[0][1])
+        max_idx=sorted_entropy[0][1]
+
+        selected_pose=PoseStamped()
+        test_quat= quaternion_from_euler(0,0,self.meas_samples[max_idx,2])
+        selected_pose.pose=Pose(Point(self.meas_samples[max_idx][0],self.meas_samples[max_idx][1],self.target_z),Quaternion(test_quat[0],test_quat[1],test_quat[2],test_quat[3]))
+        selected_pose.header.stamp=rospy.Time.now()
+        selected_pose.header.frame_id='map'
+        self.opt_pose_pub.publish(selected_pose)
+
+        desird_head_angle = self.meas_samples[max_idx,2]
+        #this desired_head_angle includes base+_head
+        desird_head_angle = desird_head_angle-self.robot_pose[2]
+        diff_angle = desird_head_angle -self.robot_pose[3];
+        if diff_angle>1.0:
+            diff_angle=0.6
+        elif diff_angle<-1.0:
+            diff_angle=-0.6
+        elif abs(diff_angle)<0.3:
+            return
+        
+        #publish the desired joint angles
+        desired_pan_joint = Float32()
+        desired_pan_joint.data= self.robot_pose[3]+diff_angle*0.6
+        self.head_command_pub.publish(desired_pan_joint)
+
+        distance =0.0
+        distance +=math.pow(self.robot_pose[0]-selected_pose.pose.position.x,2)
+        distance +=math.pow(self.robot_pose[1]-selected_pose.pose.position.y,2)
+        distance  =math.sqrt(distance)
+        # distance = np.linalg.norm(self.particles - position, axis=1)
+        #call action client
+        if self.navi_mode==1:
+            if distance>0.5:
+                self.navigation_action(selected_pose.pose.position.x, selected_pose.pose.position.y, desird_head_angle)
+                self.navi_mode=0
+            else:
+                rospy.loginfo("distance limit")
 
 
     def listener(self,wait=0.0):
-        rospy.spin() 
+        # rospy.spin() 
+
+        while not rospy.is_shutdown():
+            #should estimate without measurement
+            if self.Init_track:
+                self.Estimate_Filter3D()
+                self.decompose_particles()
+                # self.filter_by_Occgrids()
+                self.generate_q_samples(self.meas_sample_num)
+                self.evaluate_q_samples()
+                self.visualizeparticles()
+                cur_time=rospy.get_time()
+                for id in range(len(self.last_observations)):
+                    duration = cur_time -self.last_observations[id]
+                    if duration > 10.0:
+                        self.target_modes[id]=1 #set to searching mode
+
+                #navigation modes
+                navi_duration = cur_time -self.last_navitime
+                # rospy.loginfo("duration : %lf", duration)
+                # if navi_duration>15 :
+                    # self.navi_mode=1
+                # else:
+                    # self.navi_mode=0
+            
+            #rospy.spinOnce()
+            rospy.Rate(2).sleep()
+
+   
+
 
 
 if __name__ == '__main__':

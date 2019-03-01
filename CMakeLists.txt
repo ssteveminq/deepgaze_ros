@@ -13,7 +13,6 @@ find_package(catkin
     actionlib
     pcl_ros
     pcl_conversions
-    people_msgs
     octomap_ros
     octomap_msgs
     #tmc_yolo2_ros
@@ -47,6 +46,5 @@ generate_messages(
 
 catkin_package(
   CATKIN_DEPENDS actionlib_msgs
-  people_msgs
 )
 
