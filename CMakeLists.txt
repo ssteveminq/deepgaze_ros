@@ -18,6 +18,7 @@ find_package(catkin
     #tmc_yolo2_ros
     villa_yolocloud
     darknet_ros_msgs
+    pointcloud_processing_msgs
 )
 
 find_package(PCL 1.7 REQUIRED)

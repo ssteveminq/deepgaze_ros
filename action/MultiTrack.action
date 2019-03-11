@@ -1,5 +1,5 @@
 #goal definition
-std_msgs/Int8MultiArray idset
+string[] target_labels
 ---
 #result definition
 ---
