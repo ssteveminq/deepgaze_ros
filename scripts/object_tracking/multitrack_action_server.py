@@ -33,8 +33,14 @@ from geometry_msgs.msg import Pose, PoseStamped, PoseArray, Point, Quaternion, P
 from pointcloud_processing_msgs.msg import ObjectInfo, ObjectInfoArray
 from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 from deepgaze.object3d_tracking import ParticleFilter3D
+import tf
 from tf import TransformListener
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+
+_MAP_TF='map'
+_SENSOR_TF ='head_rgbd_sensor_rgb_frame'
+
+
 
 class ObjectTracker(object):
     def __init__(self, name,  wait=0.0):
@@ -49,9 +55,18 @@ class ObjectTracker(object):
         self.search_mode=0
         self.map_received=False
         self.navi_mode=0
-        self.target_modes=[]
+        """
+        ---context_mode index---
+        0: tracking mode
+        1: searching mode(missing) 
+        2: occlusion from identifiable object
+        3: occlusiong from non-ideintifiable object
+        """
+        self.context_modes=[]
+
         self.last_observations=[]
         self.last_targetlocations=[]
+        self.context_fov_locations=[]
         self.last_callbacktime=rospy.get_time()
         self.context_activate=0
 
@@ -64,6 +79,7 @@ class ObjectTracker(object):
 
         self.robot_pose=np.zeros((5,1))
         self.Init_track=False
+	self.target_distance=0.5
         # self.target_ids=[]
         self.target_strings=[]
         self.trackers=[]
@@ -80,6 +96,7 @@ class ObjectTracker(object):
         self.objimage_pub2 = rospy.Publisher("object2_photo",Image,queue_size=10)
         self.objimage_pub3 = rospy.Publisher("object3_photo",Image,queue_size=10)
 
+        self.fov_points_pub=rospy.Publisher("/out_fov_points",PointStamped,queue_size=30)
         self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
         self.sample_meas_pub=rospy.Publisher("/measurements_sample",PoseArray,queue_size=30)
         self.avg_point_pub=rospy.Publisher("/avg_point",PoseStamped,queue_size=30)
@@ -201,7 +218,7 @@ class ObjectTracker(object):
             #TODO: how we can define context? multiple context? 
             # self.context_particle = ParticleFilter3D(10,10,tot_particles)
             self.last_observations.append(rospy.get_time()) #update last obsservation time for each object
-            self.target_modes.append(0) #0: tracking mode 1: searching mode
+            self.context_modes.append(0) #0: tracking mode 1: searching mode(missing) , 2:occlusion from identifiable object 3: occlusiong from non-ideintifiable object
  
 
         rospy.loginfo("tracking initiated!!")
@@ -346,8 +363,6 @@ class ObjectTracker(object):
                 self.Update_Measurement_Filter3D(0, msg.point.x,
                     msg.point.y)
 
-
-
     def object_callback(self,msg):
         self.infoarray=msg
         if self.Init_track:
@@ -355,9 +370,9 @@ class ObjectTracker(object):
             for id in range(len(self.target_strings)):
                 for index in range(len(self.infoarray.objectinfos)):
                     if self.infoarray.objectinfos[index].label == self.target_strings[id]:
-                        #updating 3d point 
                         # rospy.loginfo("object info received: %s ", self.target_strings[id])
                         self.last_targetlocations[index]=self.infoarray.objectinfos[index].center
+			self.target_distance = self.infoarray.objectinfos[index].average_depth
                         #updating bounding box 
                         # if self.infoarray.objectinfos[index].no_observation==False:
                             # self.last_observations[id]=False
@@ -366,8 +381,9 @@ class ObjectTracker(object):
                         self.last_observations[id]=last_time.secs
                         cur_time = rospy.get_time()
                         
+                        #case: if measurement comes within 1.0 sec
                         if (cur_time - last_time.secs)<1.0:
-                            self.target_modes[id]=0
+                            self.context_modes[id]=0
                             self.Estimate_Filter3D_idx(id)
                             self.Update_Measurement_Filter3D(id, self.infoarray.objectinfos[index].center.x,
                                                          self.infoarray.objectinfos[index].center.y)
@@ -375,33 +391,77 @@ class ObjectTracker(object):
                                 self.trackers[id].resample()
                             except:
                                 rospy.loginfo("resample failed")
+
+                        #case: if measurement doesn't come within 1.0 sec
                         else:
                             # if the target is missing because of occlusion
                             if self.infoarray.objectinfos[index].occ_objects==True or self.infoarray.objectinfos[index].depth_change ==True:
-                                self.target_modes[id]=1
+                                # self.context_modes[id]=2
                                 occ_reason = self.infoarray.objectinfos[index].occ_label
                                 rospy.loginfo("object are occluded by %s, converting to searching_mode", occ_reason)
                                 for occ_index in range(len(self.infoarray.objectinfos)):
+                                    #occulusion because of identifiable object
                                     if self.infoarray.objectinfos[occ_index].label == occ_reason:
+                                       self.context_modes[id]=2
                                        occ_point.x = self.infoarray.objectinfos[occ_index].center.x+0.1
                                        occ_point.y = self.infoarray.objectinfos[occ_index].center.y
                                        rospy.loginfo("estimated from known object %s", occ_reason)
                                        self.Estimate_Filter3D_point(id,occ_point)
                                     else:
+                                        #occulusion because of non-identifiable object: use last observations
+                                       self.context_modes[id]=3
                                        occ_point = self.last_targetlocations[index]
                                        self.Estimate_Filter3D_point(id,occ_point)
                                        rospy.loginfo("estimated from uknown -from last observation")
                             else:
+                            # if the target is missing because of it's fast speed
                                 if (cur_time - last_time.secs)>2.5:
+                                    self.context_modes[id]=1
                                     rospy.loginfo("----missing case---")
                                     outputpointset=[]
-                                    outputpointset.append(self.outoffovpoint)
-                                    outputpointset.append(self.outoffovpoint2)
-                                    self.Estimate_Filter3D_pointset(id,outputpointset)
+				    # update outoffovpoint 
+				    self.get_fov_outpoints()
+                                    # outputpointset.append(self.outoffovpoint)
+                                    # outputpointset.append(self.outoffovpoint2)
+                                    self.Estimate_Filter3D_pointset(id,self.get_fov_outpoints())
                             # if the target is missing because of its high-speed
                             # self.infoarray.objectinfos[occ_index].center.y)
 
             # self.image_pub.publish(self.bridge.cv2_to_imgmsg(self.rvizframe, "bgr8"))
+    def get_fov_outpoints(self):
+	#from current configurations get field of view : exploring like frontier-based navigation
+        #getNearFovRegion()
+	FOV_horizontal=58.0*2*math.pi/360.0
+	FOV_vertical=45.0*2*math.pi/360.0
+
+	plane_height = self.target_distance*2*math.tan(0.5*FOV_vertical)
+        plane_width = self.target_distance*2*math.tan(0.5*FOV_horizontal)
+
+	#Defined in sensor frame
+	left_point=Point(-0.8*plane_width,0.0, 1.2*self.target_distance)
+	right_point=Point(0.8*plane_width,0.0, 1.2*self.target_distance)
+
+	listener = tf.TransformListener()
+	listener.waitForTransform(_SENSOR_TF, _MAP_TF, rospy.Time(0),rospy.Duration(4.0))
+	head_point=PointStamped()
+	head_point.header.frame_id = _SENSOR_TF
+	head_point.header.stamp =rospy.Time(0)
+	head_point.point=left_point
+	output_leftpoint=listener.transformPoint(_MAP_TF,head_point)
+
+	rhead_point=PointStamped()
+	rhead_point.header.frame_id = _SENSOR_TF
+	rhead_point.header.stamp =rospy.Time(0)
+	rhead_point.point=right_point
+	output_rightpoint=listener.transformPoint(_MAP_TF,rhead_point)
+	
+	outpointset=[]
+	outpointset.append(output_leftpoint)
+	outpointset.append(output_rightpoint)
+	self.fov_points_pub.publish(output_leftpoint)
+	return outpointset
+
+
 
     def crop_objects(self, image_data):
         image_batch = image_data
@@ -470,6 +530,7 @@ class ObjectTracker(object):
             self.rvizframe   = self.frame
             # objectsphotos= self.crop_objects(self.frame)
 
+            '''
             if self.color_track & self.Init_track:
                 for id in range(len(self.target_strings)):
                     try:
@@ -510,7 +571,7 @@ class ObjectTracker(object):
 
                #Resample the particles
                 # self.my_particle.resample()
-
+            '''
             #--------------------
             if self.Init_track:
                 for bbox in self.bounding_boxes:
@@ -597,8 +658,6 @@ class ObjectTracker(object):
         self.pcl_pub2.publish(particle_pcl2)
         
 
-
-
         # print "visualize detected"
         # rospy.loginfo("visualize particles")
         # rospy.loginfo("last statement in estimatefilter")
@@ -633,7 +692,7 @@ class ObjectTracker(object):
         #Predict the position of the target
         for id in range(len(self.trackers3d)):
             self.trackers3d[id].predict(x_velocity=0.01, y_velocity=0.01, std=self.std3d)
-            if self.target_modes[id]==1: # searching mode
+            if self.context_modes[id]==1: # searching mode
                 rospy.loginfo("searching mode for %s", self.target_strings[id])
                 for i in range(len(self.trackers3d[id].particles)):
                     x_particle = self.trackers3d[id].particles[i,0]
@@ -651,8 +710,6 @@ class ObjectTracker(object):
         # est_pose.header.stamp=rospy.Time.now()
         # est_pose.header.frame_id='map'
         # self.estimated_point_pub.publish(est_pose)
-
-
 
     def decompose_particles(self):
         #Decompose particles based on the field of view of sampled q_k
@@ -706,7 +763,7 @@ class ObjectTracker(object):
 
         #update interior particles in my_particles
         # for id in range(len(self.trackers3d)):
-            # if self.target_modes[id]==1: # searching mode
+            # if self.context_modes[id]==1: # searching mode
                 # for i in range(len(self.trackers3d[id].particles)):
                     # x_particle = self.trackers3d[id].particles[i,0]
                     # y_particle = self.trackers3d[id].particles[i,1]
@@ -1014,6 +1071,7 @@ class ObjectTracker(object):
             if self.Init_track:
                 self.Estimate_Filter3D()
                 self.decompose_particles()
+		self.get_fov_outpoints()
                 # self.filter_by_Occgrids()
                 self.generate_q_samples(self.meas_sample_num)
                 self.evaluate_q_samples()
@@ -1024,7 +1082,7 @@ class ObjectTracker(object):
                 # for id in range(len(self.last_observations)):
                     # duration = cur_time -self.last_observations[id]
                     # if duration > 10.0:
-                        # self.target_modes[id]=1 #set to searching mode
+                        # self.context_modes[id]=1 #set to searching mode
 
                 #navigation modes
                 navi_duration = cur_time -self.last_navitime
