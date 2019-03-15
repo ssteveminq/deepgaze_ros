@@ -30,9 +30,6 @@ from deepgaze.color_detection import BackProjectionColorDetector
 from deepgaze.mask_analysis import BinaryMaskAnalyser
 from deepgaze.motion_tracking import ParticleFilter
 from geometry_msgs.msg import Pose, PoseStamped, PoseArray, Point, Quaternion, PointStamped
-# from villa_yolocloud.msg import BboxInfo
-# from villa_yolocloud.msg import ObjectInfo
-# from villa_yolocloud.msg import ObjectInfoArray
 from pointcloud_processing_msgs.msg import ObjectInfo, ObjectInfoArray
 from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 from deepgaze.object3d_tracking import ParticleFilter3D
@@ -121,8 +118,6 @@ class ObjectTracker(object):
         # self.head_command_pub=rospy.Publisher('desired_head_pan',Float32,queue_size=10)
         # self.pcl_pub=rospy.Publisher("/particle_samples",PointCloud2,queue_size=50)
 
-
-        # rospy.Service('/relearn_clothes', learn_clothes, self.learning_dataset)
         dirname = os.path.dirname(__file__)
         self.known_folder = dirname
         self.savepicture=False
@@ -259,7 +254,6 @@ class ObjectTracker(object):
         return result_action_state 
 
 
-
     def robot_pose_Cb(self, msg):
         #self_robot_pose[0] = robot_position_x
         #self_robot_pose[1] = robot_position_y
@@ -285,8 +279,6 @@ class ObjectTracker(object):
         # rospy.loginfo("head angle: %.3lf", self.robot_pose[3])
 
 
-
-
     def learning_dataset(self,req):
         template = cv2.imread(self.filename1) #Load the image
         self.my_mask_analyser = BinaryMaskAnalyser()
@@ -304,8 +296,6 @@ class ObjectTracker(object):
 
         #set target_observations to False
         # target_observations=[]
-
-
         # for id in range(len(self.target_ids)):
             # target_observations.append(False)
             
@@ -555,16 +545,15 @@ class ObjectTracker(object):
         except CvBridgeError, e:
             print(e)
 
-
-    def update_infotrackers(self, idx, bbox_xmin, bbox_xmax, bbox_ymin, bbox_ymax):
-        x_meas = bbox_xmin+(bbox_xmax-bbox_xmin)/2
-        y_meas = bbox_ymin+(bbox_ymax-bbox_ymin)/2
-        self.trackers[idx].predict(x_velocity=0, y_velocity=0, std=self.std)
-        self.trackers[idx].drawParticles(self.rvizframe)
-        x_estimated, y_estimated, _, _ = self.trackers[idx].estimate()
-        cv2.circle(self.rvizframe, (x_estimated, y_estimated), 3, [255,0,0], 5) #GREEN dot
-        self.trackers[idx].update(x_meas, y_meas)
-        cv2.rectangle(self.rvizframe, (int(bbox_xmin),int(bbox_ymin)), (int(bbox_xmax),int(bbox_ymax)), [0,255,0], 2) #BLUE rect
+    # def update_infotrackers(self, idx, bbox_xmin, bbox_xmax, bbox_ymin, bbox_ymax):
+        # x_meas = bbox_xmin+(bbox_xmax-bbox_xmin)/2
+        # y_meas = bbox_ymin+(bbox_ymax-bbox_ymin)/2
+        # self.trackers[idx].predict(x_velocity=0, y_velocity=0, std=self.std)
+        # self.trackers[idx].drawParticles(self.rvizframe)
+        # x_estimated, y_estimated, _, _ = self.trackers[idx].estimate()
+        # cv2.circle(self.rvizframe, (x_estimated, y_estimated), 3, [255,0,0], 5) #GREEN dot
+        # self.trackers[idx].update(x_meas, y_meas)
+        # cv2.rectangle(self.rvizframe, (int(bbox_xmin),int(bbox_ymin)), (int(bbox_xmax),int(bbox_ymax)), [0,255,0], 2) #BLUE rect
         #
 
     def update_trackers(self, idx, bbox_xmin, bbox_xmax, bbox_ymin, bbox_ymax):
@@ -836,6 +825,14 @@ class ObjectTracker(object):
             return True
         else:
             return False
+
+    def Is_inFOV_point3D(self, point, test_robot_pos):
+        #return True if point is in FOV
+        #Use image plane
+
+
+
+
 
     def Is_inFOV_point(self, point, test_robot_pos):
         #return True if point is in FOV
