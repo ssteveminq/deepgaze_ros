@@ -184,7 +184,7 @@ class ObjectTracker(object):
         map_topic="/projected_map"
         rospy.Subscriber(map_topic, OccupancyGrid, self.map_Cb)
         bottle_topic="/bottle_center"
-        rospy.Subscriber(bottle_topic, PointStamped, self.bottle_Cb)
+        # rospy.Subscriber(bottle_topic, PointStamped, self.bottle_Cb)
 
         staticmap_topic="/static_obstacle_map_ref"
         rospy.Subscriber(staticmap_topic, OccupancyGrid, self.staticmap_Cb)
@@ -359,7 +359,7 @@ class ObjectTracker(object):
     def bottle_Cb(self,msg):
 
         if self.Init_track:
-            # if len(msg.poses)>0:
+            if len(msg.poses)>0:
                 self.last_targetlocations[0]=msg.point
                 self.last_observations[0]=rospy.get_time()
                 self.Estimate_Filter3D()
@@ -952,6 +952,7 @@ class ObjectTracker(object):
         else:
             return False
 
+
     def Is_inFOV_point_occ(self, point_x,point_y, test_robot_pos,occ_pos):
         #return True if point is in FOV
         #Use image plane
@@ -1045,6 +1046,20 @@ class ObjectTracker(object):
                         self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+3*uniform(-0.1,0.1)
                         self.trackers3d[id].particles[i,1]=self.last_targetlocations[id]+3*uniform(-0.1,0.1)
 
+    def get_travelcost(self, robot_config):
+
+        #should get current configuration 
+        #get difference between two configurations
+        coeff=[2.0, 2.0 , 1.0]
+        diff=0.0
+        for idx in range(len(robot_config)):
+            diff+=coeff[idx]*math.pow(self.robot_pose[idx]-robot_config[idx],2)
+
+        rospy.loginfo(diff)
+        return diff
+        #get yaw angle from quarternion
+ 
+
     def generate_q_samples(self, num):
         sample_num=num
         x_distance_bound=0.4;
@@ -1134,6 +1149,9 @@ class ObjectTracker(object):
                         particle_count+=1
 
             # rospy.loginfo("partilce counts : %d", particle_count)
+            #TODO: add traveling cost
+            traveling_cost = self.get_travelcost(self.meas_samples[i])
+            entropy_sum-=traveling_cost
             expected_entropy.append(entropy_sum)
             particle_countset.append(particle_count)
 
@@ -1145,7 +1163,8 @@ class ObjectTracker(object):
         #find the best index
         max_idx=sorted_entropy[0][1]
         # print particle_countset
-        rospy.loginfo("best index particle number: %d", particle_countset[max_idx])
+        # rospy.loginfo("best index particle number: %d", particle_countset[max_idx])
+        rospy.loginfo("best cost function value: %d", sorted_entropy[0][0])
 
         selected_pose=PoseStamped()
         test_quat= quaternion_from_euler(0,0,self.meas_samples[max_idx,2])

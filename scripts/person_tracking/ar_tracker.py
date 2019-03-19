@@ -63,7 +63,7 @@ import octomap_msgs
 
 # from deepgaze.color_detection import BackProjectionColorDetector
 # from deepgaze.mask_analysis import BinaryMaskAnalyser
-from deepgaze.object3d_tracking import ParticleFilter
+from deepgaze.object3d_tracking import ParticleFilter3D
 # from deepgaze.motion_tracking import ParticleFilter
 
 class ArTracker(object):
@@ -71,8 +71,8 @@ class ArTracker(object):
 
         tot_particles =250
         self.std=0.1;
-        self.my_particle = ParticleFilter(10, 10, tot_particles)
-        self.context_particle = ParticleFilter(10,10,tot_particles)
+        self.my_particle = ParticleFilter3D(10, 10, tot_particles)
+        self.context_particle = ParticleFilter3D(10,10,tot_particles)
         self.noise_probability = 0.10 #in range [0, 1.0]
         self.robot_pose=np.zeros((5,1))
         self.map_received=False

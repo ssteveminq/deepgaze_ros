@@ -30,7 +30,7 @@ Is_inFOV	scripts/person_tracking/context_tracker.py	/^    def Is_inFOV(self, poi
 Is_inFOV_point	scripts/object_tracking/multitrack_action_server.py	/^    def Is_inFOV_point(self, point, test_robot_pos):$/;"	m	class:ObjectTracker
 Is_inFOV_point	scripts/person_tracking/ar_tracker.py	/^    def Is_inFOV_point(self, point, test_robot_pos):$/;"	m	class:ArTracker
 Is_inFOV_point	scripts/person_tracking/context_tracker.py	/^    def Is_inFOV_point(self, point, test_robot_pos):$/;"	m	class:ArTracker
-Is_inFOV_point3D	scripts/object_tracking/multitrack_action_server.py	/^    def Is_inFOV_point3D(self, point, test_robot_pos):$/;"	m	class:ObjectTracker
+Is_inFOV_point_occ	scripts/object_tracking/multitrack_action_server.py	/^    def Is_inFOV_point_occ(self, point_x,point_y, test_robot_pos,occ_pos):$/;"	m	class:ObjectTracker
 N	scripts/pcl_practice/pcl_visualtest.py	/^N=300$/;"	v
 ObjectTracker	scripts/object_tracking/multi-template_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/multitrack_action_server.py	/^class ObjectTracker(object):$/;"	c
@@ -80,6 +80,8 @@ USE_WEBCAM	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/
 Update_Measurement_Filter	scripts/person_tracking/ar_tracker.py	/^    def Update_Measurement_Filter(self,x_center, y_center):$/;"	m	class:ArTracker
 Update_Measurement_Filter	scripts/person_tracking/context_tracker.py	/^    def Update_Measurement_Filter(self,x_center, y_center):$/;"	m	class:ArTracker
 Update_Measurement_Filter3D	scripts/object_tracking/multitrack_action_server.py	/^    def Update_Measurement_Filter3D(self,idx, x_center, y_center):$/;"	m	class:ObjectTracker
+_MAP_TF	scripts/object_tracking/multitrack_action_server.py	/^_MAP_TF='map'$/;"	v
+_SENSOR_TF	scripts/object_tracking/multitrack_action_server.py	/^_SENSOR_TF ='head_rgbd_sensor_rgb_frame'$/;"	v
 __init__	scripts/fasa_saliency_map/saliecy_map.py	/^    def __init__(self, wait=0.0):$/;"	m	class:SaliencyManager
 __init__	scripts/head_pose_estimation/head_pose_image.py	/^    def __init__(self, wait=0.0):$/;"	m	class:Head_Dectectors
 __init__	scripts/object_tracking/multi-template_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
@@ -136,9 +138,12 @@ generate_q_samples	scripts/person_tracking/ar_tracker.py	/^    def generate_q_sa
 generate_q_samples	scripts/person_tracking/context_tracker.py	/^    def generate_q_samples(self, num):$/;"	m	class:ArTracker
 get_expected_entropy	scripts/person_tracking/ar_tracker.py	/^    def get_expected_entropy(self):$/;"	m	class:ArTracker
 get_expected_entropy	scripts/person_tracking/context_tracker.py	/^    def get_expected_entropy(self):$/;"	m	class:ArTracker
+get_fov_outpoints	scripts/object_tracking/multitrack_action_server.py	/^    def get_fov_outpoints(self):$/;"	m	class:ObjectTracker
+get_travelcost	scripts/object_tracking/multitrack_action_server.py	/^    def get_travelcost(self, robot_config):$/;"	m	class:ObjectTracker
 getlinevalue	scripts/object_tracking/multitrack_action_server.py	/^    def getlinevalue(self, line_type, input_x, input_y,robot_pos):$/;"	m	class:ObjectTracker
 getlinevalue	scripts/person_tracking/ar_tracker.py	/^    def getlinevalue(self, line_type, input_x, input_y,robot_pos):$/;"	m	class:ArTracker
 getlinevalue	scripts/person_tracking/context_tracker.py	/^    def getlinevalue(self, line_type, input_x, input_y,robot_pos):$/;"	m	class:ArTracker
+getlinevalue_int	scripts/object_tracking/multitrack_action_server.py	/^    def getlinevalue_int(self, line_type, input_x, input_y, $/;"	m	class:ObjectTracker
 header	scripts/pcl_practice/pcl_visualtest.py	/^        header = std_msgs.msg.Header()$/;"	v
 header	scripts/pcl_practice/pcl_visualtest.py	/^    header = std_msgs.msg.Header()$/;"	v
 header	scripts/pcl_practice/pcl_visualtest.py	/^header = std_msgs.msg.Header()$/;"	v
