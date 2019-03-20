@@ -16,6 +16,7 @@
   <depend>keyboard</depend>
   <depend>villa_yolocloud</depend>
   <build_depend>octomap_msgs</build_depend>
+  <build_depend>pointcloud_processing_msgs</build_depend>
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
  </package>
