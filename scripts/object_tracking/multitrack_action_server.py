@@ -100,6 +100,8 @@ class ObjectTracker(object):
         self.objimage_pub3 = rospy.Publisher("object3_photo",Image,queue_size=10)
 
         self.fov_points_pub=rospy.Publisher("/out_fov_points",PointStamped,queue_size=30)
+        self.tangent_point1_pub=rospy.Publisher("/tanget_points1",PointStamped,queue_size=30)
+        self.tangent_point2_pub=rospy.Publisher("/tanget_points2",PointStamped,queue_size=30)
         self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
         self.sample_meas_pub=rospy.Publisher("/measurements_sample",PoseArray,queue_size=30)
         self.avg_point_pub=rospy.Publisher("/avg_point",PoseStamped,queue_size=30)
@@ -149,7 +151,7 @@ class ObjectTracker(object):
         self.tot_particles =2000
         self.tot_particles3d =500
         self.std=20;
-        self.std3d=0.15;
+        self.std3d=0.1;
         self.noise_probability = 0.10 #in range [0, 1.0]
         self.save_time = rospy.get_time()
         self.s1_particles=[]
@@ -162,7 +164,7 @@ class ObjectTracker(object):
 
         self.dynamic_map=OccupancyGrid()
         self.static_map=OccupancyGrid()
-        self.meas_sample_num=40
+        self.meas_sample_num=10
         self.meas_samples=np.empty((self.meas_sample_num,3))
         self.occ_raius=0.1
 
@@ -385,7 +387,7 @@ class ObjectTracker(object):
                         cur_time = rospy.get_time()
                         
                         #case: if measurement comes within 1.0 sec
-                        if (cur_time - last_time.secs)<1.0:
+                        if (cur_time - last_time.secs)<0.5:
                             self.context_modes[id]=0
                             self.Estimate_Filter3D_idx(id)
                             self.Update_Measurement_Filter3D(id, self.infoarray.objectinfos[index].center.x,
@@ -415,12 +417,12 @@ class ObjectTracker(object):
                                         #occulusion because of non-identifiable object: use last observations
                                        self.context_modes[id]=3
                                        self.occ_point = self.last_targetlocations[index]
-                                       self.occ_point.x= self.occ_point.x+0.15
+                                       self.occ_point.x= self.occ_point.x-0.125
                                        self.Estimate_Filter3D_point(id,self.occ_point)
                                        # rospy.loginfo("estimated from uknown -from last observation")
                             else:
                             # if the target is missing because of it's fast speed
-                                if (cur_time - last_time.secs)>2.5:
+                                if (cur_time - last_time.secs)>4.0:
                                     self.context_modes[id]=1
                                     rospy.loginfo("----missing case---")
                                     outputpointset=[]
@@ -848,10 +850,11 @@ class ObjectTracker(object):
     def getlinevalue_int(self, line_type, input_x, input_y, 
                         int_point1, int_point2,  robot_pos):
         
-        slope2 = (int_point1.y-robot_pos[1])/(int_point1.x-robot_pos[0])
-        slope1 = (int_point2.y-robot_pos[1])/(int_point2.x-robot_pos[0])
+        slope1 = (int_point1.y-robot_pos[1])/(int_point1.x-robot_pos[0])
+        slope2 = (int_point2.y-robot_pos[1])/(int_point2.x-robot_pos[0])
         theta_1 = math.atan(slope1)
         theta_2 = math.atan(slope2)
+        rospy.loginfo("theta1 : %.2lf, theta2 : %.2lf ", theta_1, theta_2)
         mode=0
         coeff_sign=-1.0
 
@@ -966,21 +969,36 @@ class ObjectTracker(object):
 
         #check if occ is in fov
         if self.Is_inFOV_point(occ_pos,test_robot_pos):
+           rospy.loginfo("occ in fov")
 
            res1=self.getlinevalue(1,point_x, point_y,test_robot_pose)
            res2=self.getlinevalue(2,point_x, point_y,test_robot_pose)
 
            if res1 & res2:
+                # rospy.loginfo("point ( %.3lf, %.2lf) is also in fov",point_x, point_y)
                 point_inFOV=True
            else:
                 return False
 
            #find intersection point with 
-           origin_robot = Point(test_robot_pos[0], test_robot_pos[0],0.0)
-           tangentset = tangent_point_circle_extpoint(occ_pos, 0.1, origin_robot)
+           origin_robot = Point(test_robot_pos[0], test_robot_pos[1],0.0)
+           tangentset = tangent_point_circle_extpoint(occ_pos, 0.13, origin_robot)
 
-           test_point1 = Point(tangentset[0].x,tangentset[0].y,0.0) #flt
-           test_point2 = Point(tangentset[1].x,tangentset[1].y,0.0) #frt
+
+           test_point1 = Point(tangentset[0].x,tangentset[0].y,self.target_z) #flt
+           test_point2 = Point(tangentset[1].x,tangentset[1].y,self.target_z) #frt
+
+           tan_point1 = PointStamped()
+           tan_point2 = PointStamped()
+           tan_point1.point=test_point1
+           tan_point1.header.frame_id = 'map'
+           tan_point1.header.stamp= rospy.Time.now()
+           tan_point2.point=test_point2
+           tan_point2.header.frame_id = 'map'
+           tan_point2.header.stamp= rospy.Time.now()
+           self.tangent_point1_pub.publish(tan_point1)
+           self.tangent_point2_pub.publish(tan_point2)
+           # rospy.sleep(0.1)
 
            res1=self.getlinevalue_int(1,point_x, point_y,test_point1, test_point2, test_robot_pose)
            res2=self.getlinevalue_int(2,point_x, point_y,test_point1, test_point2, test_robot_pose)
@@ -1055,7 +1073,7 @@ class ObjectTracker(object):
         for idx in range(len(robot_config)):
             diff+=coeff[idx]*math.pow(self.robot_pose[idx]-robot_config[idx],2)
 
-        rospy.loginfo(diff)
+        # rospy.loginfo(diff)
         return diff
         #get yaw angle from quarternion
  
@@ -1151,8 +1169,9 @@ class ObjectTracker(object):
             # rospy.loginfo("partilce counts : %d", particle_count)
             #TODO: add traveling cost
             traveling_cost = self.get_travelcost(self.meas_samples[i])
-            entropy_sum-=traveling_cost
+            entropy_sum-=1.5*traveling_cost
             expected_entropy.append(entropy_sum)
+            # rospy.loginfo("ettropy_sum: %.3lf", entropy_sum)
             particle_countset.append(particle_count)
 
                     
@@ -1163,8 +1182,8 @@ class ObjectTracker(object):
         #find the best index
         max_idx=sorted_entropy[0][1]
         # print particle_countset
-        # rospy.loginfo("best index particle number: %d", particle_countset[max_idx])
-        rospy.loginfo("best cost function value: %d", sorted_entropy[0][0])
+        rospy.loginfo("best index particle number: %d", particle_countset[max_idx])
+        rospy.loginfo("best cost function value: %.2lf", sorted_entropy[0][0])
 
         selected_pose=PoseStamped()
         test_quat= quaternion_from_euler(0,0,self.meas_samples[max_idx,2])
@@ -1233,7 +1252,7 @@ class ObjectTracker(object):
                     # self.navi_mode=0
             
             # rospy.spinOnce()
-            rospy.Rate(2).sleep()
+            rospy.Rate(1).sleep()
 
 
 
