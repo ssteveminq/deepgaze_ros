@@ -418,7 +418,7 @@ class ObjectTracker(object):
                                         #occulusion because of non-identifiable object: use last observations
                                        self.context_modes[id]=3
                                        self.occ_point = self.last_targetlocations[index]
-                                       self.occ_point.x= self.occ_point.x-0.125
+                                       self.occ_point.y= self.occ_point.y-0.12
                                        self.Estimate_Filter3D_point(id,self.occ_point)
                                        # rospy.loginfo("estimated from uknown -from last observation")
                             else:
@@ -983,7 +983,7 @@ class ObjectTracker(object):
 
            #find intersection point with 
            origin_robot = Point(test_robot_pos[0], test_robot_pos[1],0.0)
-           tangentset = tangent_point_circle_extpoint(occ_pos, 0.13, origin_robot)
+           tangentset = tangent_point_circle_extpoint(occ_pos, 0.1, origin_robot)
 
 
            test_point1 = Point(tangentset[0].x,tangentset[0].y,self.target_z) #flt
@@ -1082,8 +1082,8 @@ class ObjectTracker(object):
 
     def generate_q_samples(self, num):
         sample_num=num
-        x_distance_bound=0.4;
-        y_distance_bound=1.0;
+        x_distance_bound=1.0;
+        y_distance_bound=0.3;
         # rospy.loginfo("robot pose_theta: %.3lf, robot pose_y: %.3lf", self.robot_pose[2], self.robot_pose[3])
         camera_ori = self.robot_pose[2]+self.robot_pose[3]
 
@@ -1168,7 +1168,7 @@ class ObjectTracker(object):
                     # print "self.meas_samples",self.meas_samples[i]
                     # rospy.loginfo("in field of view")
                         is_occfovclouds=True
-                        occfovclouds.append([particle_x, particle_y, self.target_z])
+                        # occfovclouds.append([particle_x, particle_y, self.target_z])
                         entropy_sum-=self.trackers3d[0].weights[j]*np.log2(self.trackers3d[0].weights[j])
                         particle_count+=1
 
@@ -1180,12 +1180,12 @@ class ObjectTracker(object):
             # rospy.loginfo("ettropy_sum: %.3lf", entropy_sum)
             particle_countset.append(particle_count)
 
-        if is_occfovclouds:
-            header=std_msgs.msg.Header()
-            header.stamp=rospy.Time.now()
-            header.frame_id='map'
-            occparticle_pcl=pcl2.create_cloud_xyz32(header,occfovclouds)
-            self.occpcl_pub.publish(occparticle_pcl)
+            if is_occfovclouds:
+                header=std_msgs.msg.Header()
+                header.stamp=rospy.Time.now()
+                header.frame_id='map'
+                occparticle_pcl=pcl2.create_cloud_xyz32(header,occfovclouds)
+                self.occpcl_pub.publish(occparticle_pcl)
                     
         # print "expected_entropy", expected_entropy
         sorted_entropy = sorted(((v,i) for i, v in enumerate(expected_entropy)),reverse=True)
