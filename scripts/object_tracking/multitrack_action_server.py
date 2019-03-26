@@ -109,6 +109,7 @@ class ObjectTracker(object):
         self.head_command_pub=rospy.Publisher('desired_head_pan',Float32,queue_size=10)
         self.pcl_pub=rospy.Publisher("/particle_samples",PointCloud2,queue_size=50)
         self.pcl_pub2=rospy.Publisher("/particle_samples2",PointCloud2,queue_size=50)
+        self.occpcl_pub=rospy.Publisher("/occ_particles",PointCloud2,queue_size=50)
 
 
         # rospy.Service('/relearn_clothes', learn_clothes, self.learning_dataset)
@@ -1006,6 +1007,7 @@ class ObjectTracker(object):
            if res1 & res2:
                return False
            else:
+                # rospy.loginfo("x : %.2lf, y : %.2lf ", x_particle, y_particle)
                return True
 
         else:
@@ -1137,6 +1139,7 @@ class ObjectTracker(object):
         # self.get_expected_entropy()
         #for each fov, calculated expected number of samples 
         # expected_entropy=np.empty((len(self.meas_samples),1))
+        is_occfovclouds=False
         expected_entropy=[]
         particle_countset=[]
         for i in range(len(self.meas_samples)):
@@ -1157,12 +1160,15 @@ class ObjectTracker(object):
             else:
                 #TODO
                 # rospy.loginfo("occlusion form others")
+                occfovclouds=[]
                 for j in range(len(self.trackers3d[0].particles)):
                     particle_x=self.trackers3d[0].particles[j,0]
                     particle_y=self.trackers3d[0].particles[j,1]
                     if self.Is_inFOV_point_occ(particle_x, particle_y,self.meas_samples[i],self.occ_point)==True:
                     # print "self.meas_samples",self.meas_samples[i]
                     # rospy.loginfo("in field of view")
+                        is_occfovclouds=True
+                        occfovclouds.append([particle_x, particle_y, self.target_z])
                         entropy_sum-=self.trackers3d[0].weights[j]*np.log2(self.trackers3d[0].weights[j])
                         particle_count+=1
 
@@ -1174,6 +1180,12 @@ class ObjectTracker(object):
             # rospy.loginfo("ettropy_sum: %.3lf", entropy_sum)
             particle_countset.append(particle_count)
 
+        if is_occfovclouds:
+            header=std_msgs.msg.Header()
+            header.stamp=rospy.Time.now()
+            header.frame_id='map'
+            occparticle_pcl=pcl2.create_cloud_xyz32(header,occfovclouds)
+            self.occpcl_pub.publish(occparticle_pcl)
                     
         # print "expected_entropy", expected_entropy
         sorted_entropy = sorted(((v,i) for i, v in enumerate(expected_entropy)),reverse=True)
@@ -1220,7 +1232,6 @@ class ObjectTracker(object):
                 self.navi_mode=0
             else:
                 rospy.loginfo("distance limit")
-
 
     def listener(self,wait=0.0):
         # rospy.spin() 
