@@ -31,7 +31,9 @@ Is_inFOV_point	scripts/object_tracking/multitrack_action_server.py	/^    def Is_
 Is_inFOV_point	scripts/person_tracking/ar_tracker.py	/^    def Is_inFOV_point(self, point, test_robot_pos):$/;"	m	class:ArTracker
 Is_inFOV_point	scripts/person_tracking/context_tracker.py	/^    def Is_inFOV_point(self, point, test_robot_pos):$/;"	m	class:ArTracker
 Is_inFOV_point_occ	scripts/object_tracking/multitrack_action_server.py	/^    def Is_inFOV_point_occ(self, point_x,point_y, test_robot_pos,occ_pos):$/;"	m	class:ObjectTracker
+MEAS_SAMPLENUM	scripts/object_tracking/multitrack_action_server.py	/^MEAS_SAMPLENUM=30$/;"	v
 N	scripts/pcl_practice/pcl_visualtest.py	/^N=300$/;"	v
+OCC_RADIUS	scripts/object_tracking/multitrack_action_server.py	/^OCC_RADIUS=0.125$/;"	v
 ObjectTracker	scripts/object_tracking/multi-template_tracker.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/multitrack_action_server.py	/^class ObjectTracker(object):$/;"	c
 ObjectTracker	scripts/object_tracking/particle_object_tracker.py	/^class ObjectTracker(object):$/;"	c
@@ -74,8 +76,10 @@ PositionMeasurementCb	scripts/person_tracking/ar_tracker.py	/^    def PositionMe
 RESOLUTION_HEIGHT	scripts/fasa_saliency_map/saliecy_map.py	/^RESOLUTION_HEIGHT = 480$/;"	v
 RESOLUTION_WIDTH	scripts/fasa_saliency_map/saliecy_map.py	/^RESOLUTION_WIDTH = 640$/;"	v
 SaliencyManager	scripts/fasa_saliency_map/saliecy_map.py	/^class SaliencyManager(object):$/;"	c
+Searching_State	scripts/object_tracking/hsr_state_machine.py	/^class Searching_State(smach.State):$/;"	c
 TRACKED_POINTS	scripts/ex_dlib_pnp_head_pose_estimation_video.py	/^TRACKED_POINTS = (0, 4, 8, 12, 16, 17, 26, 27, 30, 33, 36, 39, 42, 45, 62)$/;"	v
 TRACKED_POINTS	scripts/head_pose_estimation/ex_pnp_head_pose_estimation_webcam.py	/^TRACKED_POINTS = (0, 4, 8, 12, 16, 17, 26, 27, 30, 33, 36, 39, 42, 45, 62)$/;"	v
+Tracking_State	scripts/object_tracking/hsr_state_machine.py	/^class Tracking_State(smach.State):$/;"	c
 USE_WEBCAM	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^USE_WEBCAM = False$/;"	v
 Update_Measurement_Filter	scripts/person_tracking/ar_tracker.py	/^    def Update_Measurement_Filter(self,x_center, y_center):$/;"	m	class:ArTracker
 Update_Measurement_Filter	scripts/person_tracking/context_tracker.py	/^    def Update_Measurement_Filter(self,x_center, y_center):$/;"	m	class:ArTracker
@@ -84,6 +88,8 @@ _MAP_TF	scripts/object_tracking/multitrack_action_server.py	/^_MAP_TF='map'$/;"	
 _SENSOR_TF	scripts/object_tracking/multitrack_action_server.py	/^_SENSOR_TF ='head_rgbd_sensor_rgb_frame'$/;"	v
 __init__	scripts/fasa_saliency_map/saliecy_map.py	/^    def __init__(self, wait=0.0):$/;"	m	class:SaliencyManager
 __init__	scripts/head_pose_estimation/head_pose_image.py	/^    def __init__(self, wait=0.0):$/;"	m	class:Head_Dectectors
+__init__	scripts/object_tracking/hsr_state_machine.py	/^	def __init__(self):$/;"	m	class:Tracking_State
+__init__	scripts/object_tracking/hsr_state_machine.py	/^        def __init__(self):$/;"	m	class:Searching_State
 __init__	scripts/object_tracking/multi-template_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/object_tracking/multitrack_action_server.py	/^    def __init__(self, name,  wait=0.0):$/;"	m	class:ObjectTracker
 __init__	scripts/object_tracking/particle_object_tracker.py	/^    def __init__(self, wait=0.0):$/;"	m	class:ObjectTracker
@@ -102,6 +108,7 @@ check_obsb	scripts/person_tracking/context_tracker.py	/^    def check_obsb(self,
 check_obsb_dynamic	scripts/object_tracking/multitrack_action_server.py	/^    def check_obsb_dynamic(self,pos_x,pos_y):$/;"	m	class:ObjectTracker
 check_obsb_dynamic	scripts/person_tracking/ar_tracker.py	/^    def check_obsb_dynamic(self,pos_x,pos_y):$/;"	m	class:ArTracker
 check_obsb_dynamic	scripts/person_tracking/context_tracker.py	/^    def check_obsb_dynamic(self,pos_x,pos_y):$/;"	m	class:ArTracker
+cli	scripts/object_tracking/hsr_state_machine.py	/^cli = actionlib.SimpleActionClient('\/move_base\/move', MoveBaseAction)$/;"	v
 click_point_Cb	scripts/person_tracking/ar_tracker.py	/^    def click_point_Cb(self,msg):$/;"	m	class:ArTracker
 click_point_Cb	scripts/person_tracking/context_tracker.py	/^    def click_point_Cb(self,msg):$/;"	m	class:ArTracker
 cloud_points	scripts/pcl_practice/pcl_visualtest.py	/^    cloud_points = [[1.0, 1.0, 0.0],[1.0, 2.0, 0.0]]$/;"	v
@@ -123,6 +130,8 @@ estimate	scripts/pcl_practice/pcl_visualtest.py	/^def estimate():$/;"	f
 evaluate_q_samples	scripts/object_tracking/multitrack_action_server.py	/^    def evaluate_q_samples(self):$/;"	m	class:ObjectTracker
 evaluate_q_samples	scripts/person_tracking/ar_tracker.py	/^    def evaluate_q_samples(self):$/;"	m	class:ArTracker
 evaluate_q_samples	scripts/person_tracking/context_tracker.py	/^    def evaluate_q_samples(self):$/;"	m	class:ArTracker
+execute	scripts/object_tracking/hsr_state_machine.py	/^	def execute(self, userdata):$/;"	m	class:Tracking_State
+execute	scripts/object_tracking/hsr_state_machine.py	/^        def execute(self, userdata):$/;"	m	class:Searching_State
 execute_cb	scripts/object_tracking/multitrack_action_server.py	/^    def execute_cb(self, goal):$/;"	m	class:ObjectTracker
 fig	scripts/head_pose_estimation/data_anal.py	/^fig = plt.figure()$/;"	v
 file_name	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    file_name = str(i) + ".jpg"$/;"	v
@@ -136,9 +145,12 @@ frame_mask	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/
 generate_q_samples	scripts/object_tracking/multitrack_action_server.py	/^    def generate_q_samples(self, num):$/;"	m	class:ObjectTracker
 generate_q_samples	scripts/person_tracking/ar_tracker.py	/^    def generate_q_samples(self, num):$/;"	m	class:ArTracker
 generate_q_samples	scripts/person_tracking/context_tracker.py	/^    def generate_q_samples(self, num):$/;"	m	class:ArTracker
+generate_send_goal	scripts/object_tracking/hsr_state_machine.py	/^def generate_send_goal(cmd_idx, cmd_state, prev_state):$/;"	f
+get_action	scripts/object_tracking/hsr_state_machine.py	/^def get_action():$/;"	f
 get_expected_entropy	scripts/person_tracking/ar_tracker.py	/^    def get_expected_entropy(self):$/;"	m	class:ArTracker
 get_expected_entropy	scripts/person_tracking/context_tracker.py	/^    def get_expected_entropy(self):$/;"	m	class:ArTracker
 get_fov_outpoints	scripts/object_tracking/multitrack_action_server.py	/^    def get_fov_outpoints(self):$/;"	m	class:ObjectTracker
+get_policy	scripts/object_tracking/hsr_state_machine.py	/^def get_policy():$/;"	f
 get_travelcost	scripts/object_tracking/multitrack_action_server.py	/^    def get_travelcost(self, robot_config):$/;"	m	class:ObjectTracker
 getlinevalue	scripts/object_tracking/multitrack_action_server.py	/^    def getlinevalue(self, line_type, input_x, input_y,robot_pos):$/;"	m	class:ObjectTracker
 getlinevalue	scripts/person_tracking/ar_tracker.py	/^    def getlinevalue(self, line_type, input_x, input_y,robot_pos):$/;"	m	class:ArTracker
@@ -168,6 +180,7 @@ key_callback	scripts/test_ros	/^	def key_callback(self,msg):		#"p"$/;"	m	class:F
 learning_dataset	scripts/object_tracking/multitrack_action_server.py	/^    def learning_dataset(self,req):$/;"	m	class:ObjectTracker
 learning_dataset	scripts/object_tracking/yolo_object_tracking.py	/^    def learning_dataset(self,req):$/;"	m	class:ObjectTracker
 leg	scripts/head_pose_estimation/data_anal.py	/^leg = ax1.legend()$/;"	v
+limit_moves	scripts/object_tracking/hsr_state_machine.py	/^limit_moves = 100$/;"	v
 listener	scripts/fasa_saliency_map/saliecy_map.py	/^    def listener(self,wait=0.0):$/;"	m	class:SaliencyManager
 listener	scripts/head_pose_estimation/head_pose_image.py	/^    def listener(self,wait=0.0):$/;"	m	class:Head_Dectectors
 listener	scripts/object_tracking/multi-template_tracker.py	/^    def listener(self,wait=0.0):$/;"	m	class:ObjectTracker
@@ -195,6 +208,7 @@ my_head_pose_estimator	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_
 my_head_pose_estimator	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^my_head_pose_estimator = CnnHeadPoseEstimator(sess) #Head pose estimation object$/;"	v
 my_mask_analyser	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^my_mask_analyser = BinaryMaskAnalyser()$/;"	v
 my_particle	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^my_particle = ParticleFilter(1920, 1080, tot_particles)$/;"	v
+navigation_action	scripts/object_tracking/hsr_state_machine.py	/^def navigation_action(goal_x,goal_y,goal_yaw):$/;"	f
 navigation_action	scripts/object_tracking/multitrack_action_server.py	/^    def navigation_action(self,goal_x,goal_y,goal_yaw):$/;"	m	class:ObjectTracker
 navigation_action	scripts/person_tracking/ar_tracker.py	/^    def navigation_action(self,goal_x,goal_y,goal_yaw):$/;"	m	class:ArTracker
 navigation_action	scripts/person_tracking/context_tracker.py	/^    def navigation_action(self,goal_x,goal_y,goal_yaw):$/;"	m	class:ArTracker
@@ -202,6 +216,7 @@ noise_probability	scripts/object_tracking/ex_particle_filter_object_tracking_vid
 object_callback	scripts/object_tracking/multitrack_action_server.py	/^    def object_callback(self,msg):$/;"	m	class:ObjectTracker
 object_callback	scripts/object_tracking/yolo_object_tracking.py	/^    def object_callback(self,msg):$/;"	m	class:ObjectTracker
 out	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^out = cv2.VideoWriter(".\/cows_output.avi", fourcc, 25.0, (1920,1080))$/;"	v
+outcome	scripts/object_tracking/hsr_state_machine.py	/^	outcome = sm.execute()$/;"	v
 particles	scripts/pcl_practice/pcl_visualtest.py	/^particles = np.empty((N,2))$/;"	v
 pcl_pub	scripts/pcl_practice/pcl_visualtest.py	/^    pcl_pub = rospy.Publisher("\/my_pcl_topic", PointCloud2)$/;"	v
 pitch	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^    pitch = my_head_pose_estimator.return_pitch(image)  # Evaluate the pitch angle using a CNN$/;"	v
@@ -210,6 +225,7 @@ pitch	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.
 posearray_callback	scripts/person_tracking/particle_person_tracker.py	/^    def posearray_callback(self,msg):$/;"	m	class:PersonTracker
 predict	scripts/pcl_practice/pcl_visualtest.py	/^def predict(x_veloity, y_velocity, std):$/;"	f
 read_datafile	scripts/head_pose_estimation/data_anal.py	/^def read_datafile(file_name):$/;"	f
+robot	scripts/object_tracking/hsr_state_machine.py	/^        robot = Robot()$/;"	v	class:Searching_State
 robot_pose_Cb	scripts/object_tracking/multitrack_action_server.py	/^    def robot_pose_Cb(self, msg):$/;"	m	class:ObjectTracker
 robot_pose_Cb	scripts/person_tracking/ar_tracker.py	/^    def robot_pose_Cb(self, msg):$/;"	m	class:ArTracker
 robot_pose_Cb	scripts/person_tracking/context_tracker.py	/^    def robot_pose_Cb(self, msg):$/;"	m	class:ArTracker
@@ -224,6 +240,9 @@ sess	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images.py	/^sess =
 sess	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch.py	/^sess = tf.Session() #Launch the graph in a session.$/;"	v
 sess	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_pitch_yaw.py	/^sess = tf.Session() #Launch the graph in a session.$/;"	v
 sess	scripts/head_pose_estimation/ex_cnn_head_pose_estimation_images_roll.py	/^sess = tf.Session() #Launch the graph in a session.$/;"	v
+sm	scripts/object_tracking/hsr_state_machine.py	/^	sm = smach.StateMachine(outcomes=['stop'])$/;"	v
+sm_cli	scripts/object_tracking/hsr_state_machine.py	/^sm_cli = actionlib.SimpleActionClient('state_machine', ModeConverterAction)$/;"	v
+sm_execute_cb	scripts/object_tracking/multitrack_action_server.py	/^    def sm_execute_cb(self, goal):$/;"	m	class:ObjectTracker
 staticmap_Cb	scripts/object_tracking/multitrack_action_server.py	/^    def staticmap_Cb(self,msg):$/;"	m	class:ObjectTracker
 staticmap_Cb	scripts/person_tracking/ar_tracker.py	/^    def staticmap_Cb(self,msg):$/;"	m	class:ArTracker
 staticmap_Cb	scripts/person_tracking/context_tracker.py	/^    def staticmap_Cb(self,msg):$/;"	m	class:ArTracker
@@ -232,6 +251,8 @@ std	scripts/pcl_practice/pcl_visualtest.py	/^std=0.01$/;"	v
 template	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^template = cv2.imread('template.png') #Load the image$/;"	v
 test_local_images	scripts/head_pose_estimation/head_pose_image.py	/^    def test_local_images(self): $/;"	m	class:Head_Dectectors
 tot_particles	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^tot_particles = 3000$/;"	v
+track_motion_during_duration	scripts/object_tracking/hsr_state_machine.py	/^def track_motion_during_duration(counter_in, cmd_state, prev_state):$/;"	f
+tts	scripts/object_tracking/hsr_state_machine.py	/^        tts = robot.try_get('default_tts')$/;"	v	class:Searching_State
 update	scripts/pcl_practice/pcl_visualtest.py	/^def update(x,y):$/;"	f
 update_trackers	scripts/object_tracking/multitrack_action_server.py	/^    def update_trackers(self, idx, bbox_xmin, bbox_xmax, bbox_ymin, bbox_ymax):$/;"	m	class:ObjectTracker
 updatepcl	scripts/pcl_practice/pcl_visualtest.py	/^def updatepcl():$/;"	f
@@ -241,6 +262,7 @@ visualizeparticles	scripts/object_tracking/multitrack_action_server.py	/^    def
 visualizeparticles	scripts/person_tracking/ar_tracker.py	/^    def visualizeparticles(self):$/;"	m	class:ArTracker
 visualizeparticles	scripts/person_tracking/context_tracker.py	/^    def visualizeparticles(self):$/;"	m	class:ArTracker
 weights	scripts/pcl_practice/pcl_visualtest.py	/^    weights = np.array([1.0\/N]*N)$/;"	v
+whole_body	scripts/object_tracking/hsr_state_machine.py	/^        whole_body = robot.try_get('whole_body')$/;"	v	class:Searching_State
 width	scripts/pcl_practice/pcl_visualtest.py	/^width =10$/;"	v
 x_noise	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^            x_noise = 0$/;"	v
 x_noise	scripts/object_tracking/ex_particle_filter_object_tracking_video.py	/^            x_noise = int(np.random.uniform(-300, 300))$/;"	v

@@ -18,6 +18,7 @@ from os import listdir
 import os
 from os.path import isfile, join, exists
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from deepgaze_ros.msg import ModeConverterAction, ModeConverterResult
 
 import actionlib
 from deepgaze_ros.msg import *
@@ -41,8 +42,8 @@ from deepgaze.geometry_tools import tangent_point_circle_extpoint
 
 _MAP_TF='map'
 _SENSOR_TF ='head_rgbd_sensor_rgb_frame'
-
-
+OCC_RADIUS=0.125
+MEAS_SAMPLENUM=30
 
 class ObjectTracker(object):
     def __init__(self, name,  wait=0.0):
@@ -52,6 +53,11 @@ class ObjectTracker(object):
         #ROS action started
         self._as = actionlib.SimpleActionServer(self._action_name, deepgaze_ros.msg.MultiTrackAction, execute_cb=self.execute_cb, auto_start = False)
         self._as.start()
+
+        self._action_name_sm= 'state_machine'
+        self.sm_as = actionlib.SimpleActionServer(self._action_name_sm, deepgaze_ros.msg.ModeConverterAction, execute_cb=self.sm_execute_cb, auto_start = False)
+        self.sm_as.start()
+        self.sm_result = ModeConverterResult()
 
         self.last_navitime=rospy.get_time()
         self.search_mode=0
@@ -111,6 +117,7 @@ class ObjectTracker(object):
         self.pcl_pub2=rospy.Publisher("/particle_samples2",PointCloud2,queue_size=50)
         self.occpcl_pub=rospy.Publisher("/occ_particles",PointCloud2,queue_size=50)
 
+        self.last_occfovtime = rospy.get_time()
 
         # rospy.Service('/relearn_clothes', learn_clothes, self.learning_dataset)
         dirname = os.path.dirname(__file__)
@@ -152,7 +159,7 @@ class ObjectTracker(object):
         self.tot_particles =2000
         self.tot_particles3d =500
         self.std=20;
-        self.std3d=0.1;
+        self.std3d=0.12;
         self.noise_probability = 0.10 #in range [0, 1.0]
         self.save_time = rospy.get_time()
         self.s1_particles=[]
@@ -165,10 +172,11 @@ class ObjectTracker(object):
 
         self.dynamic_map=OccupancyGrid()
         self.static_map=OccupancyGrid()
-        self.meas_sample_num=10
+        self.meas_sample_num=MEAS_SAMPLENUM
         self.meas_samples=np.empty((self.meas_sample_num,3))
         self.occ_raius=0.1
 
+        self.smlasttime=rospy.get_time()
 
         self.bridge = CvBridge()
         # image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
@@ -194,6 +202,14 @@ class ObjectTracker(object):
  
         self.navi_cli = actionlib.SimpleActionClient('/move_base/move', MoveBaseAction)
         # self.navi_cli.wait_for_server()
+
+    def sm_execute_cb(self, goal):
+        curtime = rospy.get_time()
+        if (curtime - self.smlasttime)>5.0:
+            self.sm_result.current_mode=self.context_modes[0]
+            self.smlasttime=rospy.get_time()
+
+        self.sm_as.set_succeeded(self.sm_result)
 
 
     def execute_cb(self, goal):
@@ -329,6 +345,9 @@ class ObjectTracker(object):
 
         #check if there didn't come obsrvations
 
+    # def Update_NoMeasurement_CurrentConfig(self,idx):
+
+
     def Update_Measurement_Filter3D(self,idx, x_center, y_center):
         #Update the filter with the last measurements
         
@@ -418,8 +437,8 @@ class ObjectTracker(object):
                                         #occulusion because of non-identifiable object: use last observations
                                        self.context_modes[id]=3
                                        self.occ_point = self.last_targetlocations[index]
-                                       self.occ_point.x= self.occ_point.x+0.12
-                                       self.Estimate_Filter3D_point(id,self.occ_point)
+                                       # self.occ_point.x= self.occ_point.x+0.12
+                                       self.Estimate_Filter3D_point(id,self.last_targetlocations[index])
                                        # rospy.loginfo("estimated from uknown -from last observation")
                             else:
                             # if the target is missing because of it's fast speed
@@ -855,7 +874,7 @@ class ObjectTracker(object):
         slope2 = (int_point2.y-robot_pos[1])/(int_point2.x-robot_pos[0])
         theta_1 = math.atan(slope1)
         theta_2 = math.atan(slope2)
-        rospy.loginfo("theta1 : %.2lf, theta2 : %.2lf ", theta_1, theta_2)
+        # rospy.loginfo("theta1 : %.2lf, theta2 : %.2lf ", theta_1, theta_2)
         mode=0
         coeff_sign=-1.0
 
@@ -970,7 +989,7 @@ class ObjectTracker(object):
 
         #check if occ is in fov
         if self.Is_inFOV_point(occ_pos,test_robot_pos):
-           rospy.loginfo("occ in fov")
+           # rospy.loginfo("occ in fov")
 
            res1=self.getlinevalue(1,point_x, point_y,test_robot_pose)
            res2=self.getlinevalue(2,point_x, point_y,test_robot_pose)
@@ -983,7 +1002,7 @@ class ObjectTracker(object):
 
            #find intersection point with 
            origin_robot = Point(test_robot_pos[0], test_robot_pos[1],0.0)
-           tangentset = tangent_point_circle_extpoint(occ_pos, 0.1, origin_robot)
+           tangentset = tangent_point_circle_extpoint(occ_pos, OCC_RADIUS, origin_robot)
 
 
            test_point1 = Point(tangentset[0].x,tangentset[0].y,self.target_z) #flt
@@ -1168,7 +1187,7 @@ class ObjectTracker(object):
                     # print "self.meas_samples",self.meas_samples[i]
                     # rospy.loginfo("in field of view")
                         is_occfovclouds=True
-                        # occfovclouds.append([particle_x, particle_y, self.target_z])
+                        occfovclouds.append([particle_x, particle_y, self.target_z])
                         entropy_sum-=self.trackers3d[0].weights[j]*np.log2(self.trackers3d[0].weights[j])
                         particle_count+=1
 
@@ -1181,11 +1200,15 @@ class ObjectTracker(object):
             particle_countset.append(particle_count)
 
         if is_occfovclouds:
-            header=std_msgs.msg.Header()
-            header.stamp=rospy.Time.now()
-            header.frame_id='map'
-            occparticle_pcl=pcl2.create_cloud_xyz32(header,occfovclouds)
-            self.occpcl_pub.publish(occparticle_pcl)
+            current_time = rospy.get_time()
+            if (current_time-self.last_occfovtime)>10.0:
+                rospy.loginfo("occpartice sizes = %d", len(occfovclouds))
+                header=std_msgs.msg.Header()
+                header.stamp=rospy.Time.now()
+                header.frame_id='map'
+                occparticle_pcl=pcl2.create_cloud_xyz32(header,occfovclouds)
+                self.last_occfovtime = rospy.get_time()
+                self.occpcl_pub.publish(occparticle_pcl)
                     
         # print "expected_entropy", expected_entropy
         sorted_entropy = sorted(((v,i) for i, v in enumerate(expected_entropy)),reverse=True)

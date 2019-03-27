@@ -36,6 +36,7 @@ add_action_files(
   DIRECTORY action
   FILES GazeRecog.action
   MultiTrack.action
+  ModeConverter.action
 )
 
 generate_messages(
