@@ -1232,10 +1232,10 @@ class ObjectTracker(object):
         desird_head_angle = desird_head_angle-self.robot_pose[2]
         diff_angle = desird_head_angle -self.robot_pose[3];
         if diff_angle>1.0:
-            diff_angle=0.6
+            diff_angle=0.5
         elif diff_angle<-1.0:
-            diff_angle=-0.6
-        elif abs(diff_angle)<0.3:
+            diff_angle=-0.5
+        elif abs(diff_angle)<0.35:
             return
         
         #publish the desired joint angles
