@@ -43,22 +43,26 @@ from deepgaze.geometry_tools import tangent_point_circle_extpoint
 _MAP_TF='map'
 _SENSOR_TF ='head_rgbd_sensor_rgb_frame'
 OCC_RADIUS=0.125
-MEAS_SAMPLENUM=30
+MEAS_SAMPLENUM=50
 
 class ObjectTracker(object):
     def __init__(self, name,  wait=0.0):
 
         self._action_name= name
-
         #ROS action started
         self._as = actionlib.SimpleActionServer(self._action_name, deepgaze_ros.msg.MultiTrackAction, execute_cb=self.execute_cb, auto_start = False)
         self._as.start()
 
+        self.sm_result = ModeConverterResult()
+        self.sm_feedback= ModeConverterFeedback()
+        self.sm_feedback.opt_pose= PoseStamped()
         self._action_name_sm= 'state_machine'
         self.sm_as = actionlib.SimpleActionServer(self._action_name_sm, deepgaze_ros.msg.ModeConverterAction, execute_cb=self.sm_execute_cb, auto_start = False)
         self.sm_as.start()
-        self.sm_result = ModeConverterResult()
+        rospy.loginfo("sm started")
 
+
+        self.smlasttime=rospy.get_time()
         self.last_navitime=rospy.get_time()
         self.search_mode=0
         self.map_received=False
@@ -75,6 +79,9 @@ class ObjectTracker(object):
 
         self.last_observations=[]
         self.last_targetlocations=[]
+        self.last_targetlocations.append(Point(0.0,0.0,0.0))
+        # self.last_targetlocations.append(Point(0.0,0.0,0.0))
+
         self.context_fov_locations=[]
         self.last_callbacktime=rospy.get_time()
         self.context_activate=0
@@ -118,7 +125,6 @@ class ObjectTracker(object):
         self.occpcl_pub=rospy.Publisher("/occ_particles",PointCloud2,queue_size=50)
 
         self.last_occfovtime = rospy.get_time()
-
         # rospy.Service('/relearn_clothes', learn_clothes, self.learning_dataset)
         dirname = os.path.dirname(__file__)
         # self.knooutoffovpoint2.x= 1.5 
@@ -135,11 +141,11 @@ class ObjectTracker(object):
         # self.frame=[]
         self.color_track=False
         # self.color_track=True
-        self.infoarray = ObjectInfoArray()
-        self.image_pub = rospy.Publisher("objet_tracker/particle_filter",Image,queue_size=10)
-        self.objimage_pub1 = rospy.Publisher("object1_photo",Image,queue_size=10)
-        self.objimage_pub2 = rospy.Publisher("object2_photo",Image,queue_size=10)
-        self.objimage_pub3 = rospy.Publisher("object3_photo",Image,queue_size=10)
+        # self.infoarray = ObjectInfoArray()
+        # self.image_pub = rospy.Publisher("objet_tracker/particle_filter",Image,queue_size=10)
+        # self.objimage_pub1 = rospy.Publisher("object1_photo",Image,queue_size=10)
+        # self.objimage_pub2 = rospy.Publisher("object2_photo",Image,queue_size=10)
+        # self.objimage_pub3 = rospy.Publisher("object3_photo",Image,queue_size=10)
 
         # self.estimated_point_pub=rospy.Publisher("/estimated_target",PoseStamped,queue_size=30)
         # self.sample_meas_pub=rospy.Publisher("/measurements_sample",PoseArray,queue_size=30)
@@ -159,7 +165,7 @@ class ObjectTracker(object):
         self.tot_particles =2000
         self.tot_particles3d =500
         self.std=20;
-        self.std3d=0.12;
+        self.std3d=0.08;
         self.noise_probability = 0.10 #in range [0, 1.0]
         self.save_time = rospy.get_time()
         self.s1_particles=[]
@@ -176,18 +182,21 @@ class ObjectTracker(object):
         self.meas_samples=np.empty((self.meas_sample_num,3))
         self.occ_raius=0.1
 
-        self.smlasttime=rospy.get_time()
-
         self.bridge = CvBridge()
         # image_topic = "/hsrb/head_rgbd_sensor/rgb/image_rect_color"
-        # image_topic = "/hsrb/head_rgbd_sensor/rgb/image_raw"
+        image_topic = "/hsrb/head_rgbd_sensor/rgb/image_raw"
         # image_topic = "/camera/rgb/image_color"
-        image_topic = "/camera/rgb/image_raw"
+        # image_topic = "/camera/rgb/image_raw"
 	rospy.Subscriber(image_topic, Image, self.image_callback)
+        handimage_topic = "/hsrb/hand_camera/image_raw"
+	# rospy.Subscriber(handimage_topic, Image, self.handimage_callback)
         objinfo_topic = "/ObjectInfos"
 	rospy.Subscriber(objinfo_topic, ObjectInfoArray, self.object_callback)
         darknet_topic = "/darknet_ros/bounding_boxes"
 	rospy.Subscriber(darknet_topic, BoundingBoxes, self.yolo_callback)
+        darknet_topic_hand = "/darknet_ros_hand/bounding_boxes"
+	rospy.Subscriber(darknet_topic_hand, BoundingBoxes, self.yolo_hand_callback)
+
         robot_pose_topic='global_pose'
         rospy.Subscriber(robot_pose_topic, PoseStamped, self.robot_pose_Cb)
         jointstates_topic='hsrb/joint_states'
@@ -205,14 +214,27 @@ class ObjectTracker(object):
 
     def sm_execute_cb(self, goal):
         curtime = rospy.get_time()
-        if (curtime - self.smlasttime)>5.0:
-            self.sm_result.current_mode=self.context_modes[0]
-            self.smlasttime=rospy.get_time()
+        self.sm_result.current_mode=-1
 
-        self.sm_as.set_succeeded(self.sm_result)
+        if self.Init_track:
+            if (curtime - self.smlasttime)>3.0:
+                self.sm_result.current_mode=self.context_modes[0]
+                self.smlasttime=rospy.get_time()
+                if self.sm_result.current_mode>1:
+                    self.sm_as.publish_feedback(self.sm_feedback)
+                    #TODO: put feedback_Info
+            else:
+                self.sm_result.current_mode=-1
+
+            self.sm_as.publish_feedback(self.sm_feedback)
+            self.sm_as.set_succeeded(self.sm_result)
+        else:
+            self.sm_as.publish_feedback(self.sm_feedback)
+            self.sm_as.set_succeeded(self.sm_result)
 
 
     def execute_cb(self, goal):
+        idcount=0
         for name in goal.target_labels:
             rospy.loginfo("target set : id :%s",  name)
             self.target_strings.append(name)
@@ -220,7 +242,8 @@ class ObjectTracker(object):
                 if self.infoarray.objectinfos[index].label ==name:
                     rospy.loginfo("tracking object label : %s",name)
                     last_targetlocation = self.infoarray.objectinfos[index].center
-                    self.last_targetlocations.append(last_targetlocation)
+                    self.last_targetlocations[idcount]=last_targetlocation
+                    idcount+=1
 
             # for index in range(len(self.infoarray.objectinfos)):
                 # if self.infoarray.objectinfos[index].id == id:
@@ -329,6 +352,46 @@ class ObjectTracker(object):
 
     def yolo_callback(self,msg):
         self.bounding_boxes = msg.bounding_boxes
+        '''
+        if self.Init_track:
+            for bbox in self.bounding_boxes:
+                for id in range(len(self.target_strings)):
+                    # if bbox.Class == self.target_strings[id]:
+
+                    desired_head_pan= self.robot_pose[3]
+                    if bbox.Class == 'bottle':
+                        self.update_trackers(0,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
+                        box_center = Point((bbox.xmin+bbox.xmax)/2, (bbox.xmin+bbox.xmax)/2, self.target_z)
+                        if box_center.x<200:
+                            ee_desired_cmd=1
+                            desired_head_pan = self.robot_pose[3]+0.2
+                            rospy.loginfo("deisred_head : left")
+                        elif box_center.x<100:
+                            desired_head_pan = self.robot_pose[3]+0.5
+                            rospy.loginfo("deisred_head : left")
+                        elif box_center.x>450:
+                            ee_desired_cmd=2
+                            desired_head_pan = self.robot_pose[3]-0.25
+                            rospy.loginfo("deisred_head : right")
+                        elif box_center.x>560:
+                            ee_desired_cmd=2
+                            desired_head_pan = self.robot_pose[3]-0.5
+                            rospy.loginfo("deisred_head : right")
+                        else:
+                            ee_desired_cmd=0
+                            desired_head_pan= self.robot_pose[3]
+                            
+                        #publish the desired joint angles
+                        desired_pan_joint = Float32()
+                        desired_pan_joint.data= desired_head_pan
+                        self.head_command_pub.publish(desired_pan_joint)
+        '''
+
+
+
+    def yolo_hand_callback(self,msg):
+        self.bounding_boxes_hand = msg.bounding_boxes
+
 
         #set target_observations to False
         # target_observations=[]
@@ -396,7 +459,9 @@ class ObjectTracker(object):
                 for index in range(len(self.infoarray.objectinfos)):
                     if self.infoarray.objectinfos[index].label == self.target_strings[id]:
                         # rospy.loginfo("object info received: %s ", self.target_strings[id])
-                        self.last_targetlocations[index]=self.infoarray.objectinfos[index].center
+                        self.last_targetlocations[id]=self.infoarray.objectinfos[index].center
+                        self.sm_feedback.last_target_position = self.last_targetlocations[id]
+                        
 			self.target_distance = self.infoarray.objectinfos[index].average_depth
                         #updating bounding box 
                         # if self.infoarray.objectinfos[index].no_observation==False:
@@ -407,7 +472,7 @@ class ObjectTracker(object):
                         cur_time = rospy.get_time()
                         
                         #case: if measurement comes within 1.0 sec
-                        if (cur_time - last_time.secs)<0.5:
+                        if (cur_time - last_time.secs)<1.0:
                             self.context_modes[id]=0
                             self.Estimate_Filter3D_idx(id)
                             self.Update_Measurement_Filter3D(id, self.infoarray.objectinfos[index].center.x,
@@ -442,7 +507,7 @@ class ObjectTracker(object):
                                        # rospy.loginfo("estimated from uknown -from last observation")
                             else:
                             # if the target is missing because of it's fast speed
-                                if (cur_time - last_time.secs)>4.0:
+                                if (cur_time - last_time.secs)>5.0:
                                     self.context_modes[id]=1
                                     rospy.loginfo("----missing case---")
                                     outputpointset=[]
@@ -451,6 +516,9 @@ class ObjectTracker(object):
                                     # outputpointset.append(self.outoffovpoint)
                                     # outputpointset.append(self.outoffovpoint2)
                                     self.Estimate_Filter3D_pointset(id,self.get_fov_outpoints())
+                                else:
+                                    self.context_modes[id]=0
+                                    #TODO: Check this case 
                             # if the target is missing because of its high-speed
                             # self.infoarray.objectinfos[occ_index].center.y)
 
@@ -547,13 +615,37 @@ class ObjectTracker(object):
         # print("training done")
         self.save_time=rospy.get_time()
 
+    def handimage_callback(self,msg):
+        # print('image_callback: ')
+        try:
+            self.handframe   = self.bridge.imgmsg_to_cv2(msg,"bgr8")
+            # self.rvizframe   = self.frame
+            # print('image_callback: ')
+            if self.Init_track:
+                for bbox in self.bounding_boxes_hand:
+                    for id in range(len(self.target_strings)):
+                        if bbox.Class == 'cup':
+                            self.update_trackers_handimage(1,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
+
+
+            cv2.namedWindow("handimage_window", cv2.WINDOW_NORMAL)
+            # cv2.moveWindow(winname, 50,40)
+            cv2.imshow("handimage_window", self.handframe)
+            cv2.waitKey(1)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                exit()
+               # break #Exit when Q is pressed
+
+        except CvBridgeError, e:
+            print(e)
+
 	
     def image_callback(self,msg):
         # print('image_callback: ')
         
         try:
             self.frame   = self.bridge.imgmsg_to_cv2(msg,"bgr8")
-            self.rvizframe   = self.frame
+            # self.rvizframe   = self.frame
             # objectsphotos= self.crop_objects(self.frame)
 
             '''
@@ -602,8 +694,39 @@ class ObjectTracker(object):
             if self.Init_track:
                 for bbox in self.bounding_boxes:
                     for id in range(len(self.target_strings)):
-                        if bbox.Class == self.target_strings[id]:
-                            self.update_trackers(id,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
+                        # if bbox.Class == self.target_strings[id]:
+
+                        desired_head_pan= self.robot_pose[3]
+                        if bbox.Class == 'bottle':
+                            self.context_modes[id]=0
+                            self.update_trackers(0,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
+                            box_center = Point((bbox.xmin+bbox.xmax)/2, (bbox.xmin+bbox.xmax)/2, self.target_z)
+                            if box_center.x<200:
+                                ee_desired_cmd=1
+                                desired_head_pan = self.robot_pose[3]+0.25
+                                rospy.loginfo("deisred_head : left")
+                            elif box_center.x<100:
+                                desired_head_pan = self.robot_pose[3]+0.5
+                                rospy.loginfo("deisred_head : left")
+                            elif box_center.x>450:
+                                ee_desired_cmd=2
+                                desired_head_pan = self.robot_pose[3]-0.25
+                                rospy.loginfo("deisred_head : right")
+                            elif box_center.x>560:
+                                ee_desired_cmd=2
+                                desired_head_pan = self.robot_pose[3]-0.5
+                                rospy.loginfo("deisred_head : right")
+                            else:
+                                ee_desired_cmd=0
+                                desired_head_pan= self.robot_pose[3]
+                            
+                        #publish the desired joint angles
+                            desired_pan_joint = Float32()
+                            desired_pan_joint.data= desired_head_pan
+                            self.head_command_pub.publish(desired_pan_joint)
+
+
+                            # self.update_trackers(id,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
                                 
 
                     # self.update_trackers(id,self.yolo_bbs[id].xmin, self.yolo_bbs[id].xmax, self.yolo_bbs[id].ymin, self.yolo_bbs[id].ymax)
@@ -614,20 +737,20 @@ class ObjectTracker(object):
                             # self.update_trackers(id,bbox.x,bbox.x+bbox.width,bbox.y,bbox.y+bbox.height)
             #--------------------------------------------
 
-
-
                #Writing in the output file
                # out.write(frame)
             # self.image_pub.publish(self.bridge.cv2_to_imgmsg(self.frame, "bgr8"))
 
             # winname="pf_test"
+            '''
             cv2.namedWindow("image_window", cv2.WINDOW_NORMAL)
-            # cv2.moveWindow(winname, 50,40)
             cv2.imshow("image_window", self.frame)
             cv2.waitKey(1)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 exit()
                # break #Exit when Q is pressed
+            '''
+
 
         except CvBridgeError, e:
             print(e)
@@ -657,6 +780,22 @@ class ObjectTracker(object):
         except: 
             rospy.loginfo("resample failed")
 
+    def update_trackers_handimage(self, idx, bbox_xmin, bbox_xmax, bbox_ymin, bbox_ymax):
+        x_meas = bbox_xmin+(bbox_xmax-bbox_xmin)/2
+        y_meas = bbox_ymin+(bbox_ymax-bbox_ymin)/2
+        self.trackers[idx].predict(x_velocity=0, y_velocity=0, std=self.std)
+        self.trackers[idx].drawParticles(self.handframe)
+        x_estimated, y_estimated, _, _ = self.trackers[idx].estimate()
+        cv2.circle(self.handframe, (x_estimated, y_estimated), 3, [0,255,0], 5) #GREEN dot
+        self.trackers[idx].update(x_meas, y_meas)
+        cv2.rectangle(self.handframe, (int(bbox_xmin),int(bbox_ymin)), (int(bbox_xmax),int(bbox_ymax)), [255,0,0], 2) #BLUE rect
+        try:
+            self.trackers[idx].resample()
+        except: 
+            rospy.loginfo("resample failed")
+
+
+
     def visualizeparticles(self):
         
         cloudsetarray=[]
@@ -676,12 +815,11 @@ class ObjectTracker(object):
         self.pcl_pub.publish(particle_pcl)
 
 
-        header=std_msgs.msg.Header()
-        header.stamp=rospy.Time.now()
-        header.frame_id='map'
-        particle_pcl2=pcl2.create_cloud_xyz32(header,cloudsetarray[1])
-        # print particle_pcl.fields
-        self.pcl_pub2.publish(particle_pcl2)
+        # header=std_msgs.msg.Header()
+        # header.stamp=rospy.Time.now()
+        # header.frame_id='map'
+        # particle_pcl2=pcl2.create_cloud_xyz32(header,cloudsetarray[1])
+        # self.pcl_pub2.publish(particle_pcl2)
         
 
         # print "visualize detected"
@@ -1101,8 +1239,8 @@ class ObjectTracker(object):
 
     def generate_q_samples(self, num):
         sample_num=num
-        y_distance_bound=1.0;
-        x_distance_bound=0.3;
+        y_distance_bound=1.2;
+        x_distance_bound=0.4;
         # rospy.loginfo("robot pose_theta: %.3lf, robot pose_y: %.3lf", self.robot_pose[2], self.robot_pose[3])
         camera_ori = self.robot_pose[2]+self.robot_pose[3]
 
@@ -1117,7 +1255,7 @@ class ObjectTracker(object):
 
         #generate random position from robot
         self.meas_samples=np.empty((num,3))
-        self.meas_samples[:,0]=np.random.uniform(self.robot_pose[0]-x_distance_bound, self.robot_pose[0]+x_distance_bound,num)
+        self.meas_samples[:,0]=np.random.uniform(self.robot_pose[0]-2*x_distance_bound, self.robot_pose[0]+0.5*x_distance_bound,num)
         self.meas_samples[:,1]=np.random.uniform(self.robot_pose[1]-y_distance_bound, self.robot_pose[1]+y_distance_bound,num)
         random_theta=camera_ori+np.random.uniform(-math.pi/3,math.pi/3,num)
 
@@ -1194,7 +1332,7 @@ class ObjectTracker(object):
             # rospy.loginfo("partilce counts : %d", particle_count)
             #TODO: add traveling cost
             traveling_cost = self.get_travelcost(self.meas_samples[i])
-            entropy_sum-=1.5*traveling_cost
+            entropy_sum-=0.5*traveling_cost
             expected_entropy.append(entropy_sum)
             # rospy.loginfo("ettropy_sum: %.3lf", entropy_sum)
             particle_countset.append(particle_count)
@@ -1226,7 +1364,9 @@ class ObjectTracker(object):
         selected_pose.header.stamp=rospy.Time.now()
         selected_pose.header.frame_id='map'
         self.opt_pose_pub.publish(selected_pose)
+        self.sm_feedback.opt_pose= selected_pose
 
+        '''
         desird_head_angle = self.meas_samples[max_idx,2]
         #this desired_head_angle includes base+_head
         desird_head_angle = desird_head_angle-self.robot_pose[2]
@@ -1235,13 +1375,14 @@ class ObjectTracker(object):
             diff_angle=0.5
         elif diff_angle<-1.0:
             diff_angle=-0.5
-        elif abs(diff_angle)<0.35:
+        elif abs(diff_angle)<0.4:
             return
         
         #publish the desired joint angles
-        desired_pan_joint = Float32()
-        desired_pan_joint.data= self.robot_pose[3]+diff_angle*0.6
-        self.head_command_pub.publish(desired_pan_joint)
+        # desired_pan_joint = Float32()
+        # desired_pan_joint.data= self.robot_pose[3]+diff_angle*0.6
+        # self.head_command_pub.publish(desired_pan_joint)
+        '''
 
         distance =0.0
         distance +=math.pow(self.robot_pose[0]-selected_pose.pose.position.x,2)
@@ -1255,6 +1396,7 @@ class ObjectTracker(object):
                 self.navi_mode=0
             else:
                 rospy.loginfo("distance limit")
+
 
     def listener(self,wait=0.0):
         # rospy.spin() 

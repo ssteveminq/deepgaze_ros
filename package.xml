@@ -19,4 +19,6 @@
   <build_depend>pointcloud_processing_msgs</build_depend>
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
+  <exec_depend>villa_manipulation</exec_depend>
+  <exec_depend>navi_service</exec_depend>
  </package>

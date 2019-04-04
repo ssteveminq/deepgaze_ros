@@ -12,15 +12,20 @@ from deepgaze_ros.msg import *
 
 def mains():
     # Initialize
-    client = actionlib.SimpleActionClient('multi_tracker_action',deepgaze_ros.msg.MultiTrackAction)
+    client = actionlib.SimpleActionClient('state_machine',deepgaze_ros.msg.ModeConverterAction)
     client.wait_for_server()
-    goal = deepgaze_ros.msg.MultiTrackGoal()
-    goal.target_labels.append('bottle')
+    rospy.loginfo("found action server")
+    goal = deepgaze_ros.msg.ModeConverterGoal()
+    # goal.target_labels.append('bottle')
     # goal.target_labels.append('cup')
     # goal.idset.data.append(1)
-    client.send_goal(goal)
+    client.send_goal(goal, done_cb=None,active_cb=None,feedback_cb=feedback_Cb)
     client.wait_for_result()
     rospy.loginfo("start action")
+
+def feedback_Cb(msg):
+    rospy.loginfo("feedback callback")
+    print msg
         
 if __name__ == '__main__':
     rospy.init_node('multi_track_client')

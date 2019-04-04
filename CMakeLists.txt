@@ -19,6 +19,8 @@ find_package(catkin
     villa_yolocloud
     darknet_ros_msgs
     pointcloud_processing_msgs
+    villa_manipulation
+    navi_service
 )
 
 find_package(PCL 1.7 REQUIRED)

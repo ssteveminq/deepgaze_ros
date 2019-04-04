@@ -4,3 +4,5 @@
 int8 current_mode
 ---
 #feedback
+geometry_msgs/PoseStamped opt_pose
+geometry_msgs/Point last_target_position
