@@ -25,9 +25,10 @@ import numpy as np
 import time
 
 
+
 def get_action(current_state):
 
-    # if cmd_idx==len(desired_states):
+        # if cmd_idx==len(desired_states):
     current_context=get_policy()
 
     if current_context == 0:
@@ -47,6 +48,9 @@ def get_action(current_state):
     return current_context, output_state
 
 def sm_feedback_Cb(msg):
+    global is_feedback
+    global opt_pose
+    global last_target_pos
     rospy.loginfo("feedback callback")
     is_feedback=True
     opt_pose =msg.opt_pose
@@ -84,26 +88,35 @@ def headtracking_action():
     # return headtracking_actionresult
 
 def approach_action(desired_pose):
-    rospy.loginfo("approach_action_")
+    # rospy.loginfo("approach_action_")
+    global is_feedback
+    global opt_pose
+    global last_target_pos
+
     print "is_feedback", is_feedback
     if is_feedback:
         rospy.loginfo("approach_action if inside")
         goal = navi_service.msg.ApproachGoal()
+        
+        # desired_pose=PoseStamped()
         desired_pose.header.frame_id='map'
         desired_pose.header.stamp=rospy.Time.now()
         goal.target=desired_pose
-        rospy.loginfo("approac_action middle")
+        # rospy.loginfo("approac_action middle")
+        print('----------------------------------------------------------------')
         print desired_pose
+        print('----------------------------------------------------------------')
         gaze_pose = geometry_msgs.msg.PoseStamped()
         gaze_pose.header.frame_id='map'
         gaze_pose.header.stamp=rospy.Time.now()
         gaze_pose.pose.position.x=last_target_pos.x
-        gaze_pose.pose.position.x=last_target_pos.y
+        gaze_pose.pose.position.y=last_target_pos.y
         goal.gaze_target = gaze_pose
         approach_client.send_goal(goal)
         approach_client.wait_for_result()
         approach_state = approach_client.get_state()
         return approach_state 
+        # return 3
     else:
         rospy.loginfo("approach_else")
         return 3
@@ -178,6 +191,7 @@ def moveit_ik_action():
 	# return result_action_state 
 	
 def generate_send_goal(cmd_idx, cmd_state, prev_state):
+    global opt_pose
 
     if cmd_idx ==-1:
             return GoalStatus.SUCCEEDED

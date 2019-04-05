@@ -42,7 +42,7 @@ from deepgaze.geometry_tools import tangent_point_circle_extpoint
 
 _MAP_TF='map'
 _SENSOR_TF ='head_rgbd_sensor_rgb_frame'
-OCC_RADIUS=0.125
+OCC_RADIUS=0.2
 MEAS_SAMPLENUM=50
 
 class ObjectTracker(object):
@@ -64,6 +64,9 @@ class ObjectTracker(object):
 
         self.smlasttime=rospy.get_time()
         self.last_navitime=rospy.get_time()
+        self.last_imagetime=rospy.get_time()
+        
+        self.last_context_mode=0
         self.search_mode=0
         self.map_received=False
         self.navi_mode=0
@@ -165,7 +168,7 @@ class ObjectTracker(object):
         self.tot_particles =2000
         self.tot_particles3d =500
         self.std=20;
-        self.std3d=0.08;
+        self.std3d=0.12;
         self.noise_probability = 0.10 #in range [0, 1.0]
         self.save_time = rospy.get_time()
         self.s1_particles=[]
@@ -217,7 +220,7 @@ class ObjectTracker(object):
         self.sm_result.current_mode=-1
 
         if self.Init_track:
-            if (curtime - self.smlasttime)>3.0:
+            if (curtime - self.smlasttime)>2.5:
                 self.sm_result.current_mode=self.context_modes[0]
                 self.smlasttime=rospy.get_time()
                 if self.sm_result.current_mode>1:
@@ -411,6 +414,10 @@ class ObjectTracker(object):
     # def Update_NoMeasurement_CurrentConfig(self,idx):
 
 
+    # def Update_NOMeasurement_Filter3D(self,cur_fov):
+
+
+
     def Update_Measurement_Filter3D(self,idx, x_center, y_center):
         #Update the filter with the last measurements
         
@@ -501,7 +508,7 @@ class ObjectTracker(object):
                                     else:
                                         #occulusion because of non-identifiable object: use last observations
                                        self.context_modes[id]=3
-                                       self.occ_point = self.last_targetlocations[index]
+                                       self.occ_point = self.last_targetlocations[id]
                                        # self.occ_point.x= self.occ_point.x+0.12
                                        self.Estimate_Filter3D_point(id,self.last_targetlocations[index])
                                        # rospy.loginfo("estimated from uknown -from last observation")
@@ -699,22 +706,23 @@ class ObjectTracker(object):
                         desired_head_pan= self.robot_pose[3]
                         if bbox.Class == 'bottle':
                             self.context_modes[id]=0
+                            self.last_imagetime=rospy.get_time()
                             self.update_trackers(0,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
                             box_center = Point((bbox.xmin+bbox.xmax)/2, (bbox.xmin+bbox.xmax)/2, self.target_z)
                             if box_center.x<200:
                                 ee_desired_cmd=1
-                                desired_head_pan = self.robot_pose[3]+0.25
+                                desired_head_pan = self.robot_pose[3]+0.3
                                 rospy.loginfo("deisred_head : left")
                             elif box_center.x<100:
-                                desired_head_pan = self.robot_pose[3]+0.5
+                                desired_head_pan = self.robot_pose[3]+0.6
                                 rospy.loginfo("deisred_head : left")
                             elif box_center.x>450:
                                 ee_desired_cmd=2
-                                desired_head_pan = self.robot_pose[3]-0.25
+                                desired_head_pan = self.robot_pose[3]-0.3
                                 rospy.loginfo("deisred_head : right")
                             elif box_center.x>560:
                                 ee_desired_cmd=2
-                                desired_head_pan = self.robot_pose[3]-0.5
+                                desired_head_pan = self.robot_pose[3]-0.55
                                 rospy.loginfo("deisred_head : right")
                             else:
                                 ee_desired_cmd=0
@@ -724,6 +732,13 @@ class ObjectTracker(object):
                             desired_pan_joint = Float32()
                             desired_pan_joint.data= desired_head_pan
                             self.head_command_pub.publish(desired_pan_joint)
+
+                cur_time = rospy.get_time()
+                time_duration = cur_time -self.last_imagetime
+                if (time_duration >5.0):
+                    self.context_modes[id]=self.last_context_mode
+                    
+
 
 
                             # self.update_trackers(id,bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax)
@@ -862,20 +877,31 @@ class ObjectTracker(object):
                 rospy.loginfo("searching mode for %s", self.target_strings[id])
                 self.get_fov_outpoints()
                 self.Estimate_Filter3D_pointset(id,self.get_fov_outpoints())
-                # for i in range(len(self.trackers3d[id].particles)):
-                    # x_particle = self.trackers3d[id].particles[i,0]
-                    # y_particle = self.trackers3d[id].particles[i,1]
-                    # if self.Is_inFOV(x_particle,y_particle, self.robot_pose)==True:
-                        # self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+uniform(-0.15,0.15)
-                        # self.trackers3d[id].particles[i,1]=self.last_targetlocations[id].y+uniform(-0.15,0.15)
+                #update no measurement
+                for i in range(len(self.trackers3d[id].particles)):
+                    x_particle = self.trackers3d[id].particles[i,0]
+                    y_particle = self.trackers3d[id].particles[i,1]
+                    if self.Is_inFOV(x_particle,y_particle, self.robot_pose)==True:
+                        self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+uniform(-0.05,0.05)
+                        self.trackers3d[id].particles[i,1]=self.last_targetlocations[id].y+uniform(-0.05,0.05)
 
             elif self.context_modes[id]==2: # occ_with_identified object
                 rospy.loginfo("occ_with identifiable object")
                 self.Estimate_Filter3D_point(id,self.occ_point)
+                self.last_context_mode=self.context_modes[id]
 
             elif self.context_modes[id]==3: # occ_with_nonidentified object mode
                 rospy.loginfo("occ_with non-identifiable object")
                 self.Estimate_Filter3D_point(id,self.last_targetlocations[id])
+                self.last_context_mode=self.context_modes[id]
+                for i in range(len(self.trackers3d[id].particles)):
+                    x_particle = self.trackers3d[id].particles[i,0]
+                    y_particle = self.trackers3d[id].particles[i,1]
+                    if self.Is_inFOV(x_particle,y_particle, self.robot_pose)==True:
+                        self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+uniform(-0.05,0.05)
+                        self.trackers3d[id].particles[i,1]=self.last_targetlocations[id].y+uniform(-0.05,0.05)
+
+
  
                 #TODO: context!!!
 
@@ -1210,6 +1236,19 @@ class ObjectTracker(object):
         else:
             return False
 
+    def filter_by_fov(self):
+        #based on projected_map from octomap
+        #remove partilces from partilces false-postive
+        if self.map_received:
+            for id in range(len(self.trackers3d)):
+                for i in range(len(self.trackers3d[id].particles)):
+                    x_particle = self.trackers3d[id].particles[i,0]
+                    y_particle = self.trackers3d[id].particles[i,1]
+                    if self.check_obsb(x_particle, y_particle)==True:
+                        self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+3*uniform(-0.1,0.1)
+                        self.trackers3d[id].particles[i,1]=self.last_targetlocations[id]+3*uniform(-0.1,0.1)
+
+
 
     def filter_by_Occgrids(self):
         #based on projected_map from octomap
@@ -1331,6 +1370,7 @@ class ObjectTracker(object):
 
             # rospy.loginfo("partilce counts : %d", particle_count)
             #TODO: add traveling cost
+            entropy_sum=3*entropy_sum
             traveling_cost = self.get_travelcost(self.meas_samples[i])
             entropy_sum-=0.5*traveling_cost
             expected_entropy.append(entropy_sum)
