@@ -31,21 +31,36 @@ def get_action(current_state):
         # if cmd_idx==len(desired_states):
     current_context=get_policy()
 
-    if current_context == 0:
-        output_state = 'Go_Tracking'
-    elif current_context == -1:
-        if current_state == 0:
+    if current_state==0:
+        if current_context == 0:
             output_state = 'Go_Tracking'
+        elif current_context == -1:
+            if current_state == 0:
+                output_state = 'Go_Tracking'
+            else:
+                output_state = 'Go_Searching'
         else:
             output_state = 'Go_Searching'
+
+        return current_context, output_state
     else:
-        output_state = 'Go_Searching'
+        if current_context == 0:
+            output_state = 'Go_Searching'
+        elif current_context == -1:
+            if current_state == 0:
+                output_state = 'Go_Searching'
+            else:
+                output_state = 'Go_Searching'
+        else:
+            output_state = 'Go_Searching'
+
+        return current_context, output_state
     # elif current_context == 1:
         # output_state = 'Go_Searching'
     # else:  
         # print "desired state out of bounds"
         # output_state = 'end_demo'
-    return current_context, output_state
+    # return current_context, output_state
 
 def sm_feedback_Cb(msg):
     global is_feedback
@@ -193,9 +208,9 @@ def moveit_ik_action():
 def generate_send_goal(cmd_idx, cmd_state, prev_state):
     global opt_pose
 
+    # rospy.loginfo("generate_send_goal, cmd_state: %d", cmd_state)
     if cmd_idx ==-1:
             return GoalStatus.SUCCEEDED
-
     # Move_Base = True
     action_state=GoalStatus.SUCCEEDED
     # cmd_state = desired_states[cmd_idx]
@@ -205,8 +220,9 @@ def generate_send_goal(cmd_idx, cmd_state, prev_state):
         # move_action_state=navigation_action(goal_x,goal_y,goal_yaw)
     elif cmd_state == 1:
         rospy.loginfo("missing")
+        rospy.loginfo("generate_send_goal, cmd_state: %d", cmd_state)
+        action_state = headtracking_action()
     elif cmd_state == 2:
-        # action_state = headtracking_action()
         # action_state = ee_control_action()
         rospy.sleep(0.5)
         rospy.loginfo("searching- occ with known object")
@@ -243,6 +259,8 @@ def track_motion_during_duration( cmd_state, prev_state):
         max_dur = 5.0
     elif cmd_state ==2:
         max_dur = 5.0
+    elif cmd_state ==1:
+        max_dur = 2.5
     else:
         max_dur = 0.5
 
@@ -266,7 +284,8 @@ def track_motion_during_duration( cmd_state, prev_state):
             rospy.loginfo("action is still active")
             continue
         else:
-            rospy.loginfo("output is wrong")
+            # rospy.loginfo(")
+            rospy.loginfo("output is wrong, current action_state is : %d",action_state  )
             continue
 
         iterator=0
@@ -283,7 +302,7 @@ class Tracking_State(smach.State):
             rospy.loginfo('Executing Tracking_State')
 
             action_state = track_motion_during_duration(userdata.S0_desired_state_in, userdata.S0_previous_state_in)
-            rospy.loginfo("Tracking_state: %d", action_state)
+            # rospy.loginfo("Tracking_state: %d", action_state)
 
             if action_state == GoalStatus.SUCCEEDED:
                 # userdata.S0_counter_out=userdata.S0_counter_in+1
@@ -317,8 +336,6 @@ class Searching_State(smach.State):
 
         def execute(self, userdata):
             rospy.loginfo('Executing Searching_State')
-            # tts.say("Executing State 1")
-            # rospy.sleep(0.5)
 
             action_state = track_motion_during_duration(userdata.S1_desired_state_in, userdata.S1_previous_state_in)
 
@@ -329,8 +346,18 @@ class Searching_State(smach.State):
                 userdata.S1_desired_state_out, output_state = get_action(1)
                 return output_state
             else:
-                "goal was not achieved"
-                return 'end_demo'
+                # "goal was not achieved"
+                rospy.loginfo("neither succeeded or active")
+                # userdata.S0_counter_out=userdata.S0_counter_in+1
+                # print "userdata.S0_counter out", userdata.S0_counter_out
+                userdata.S1_previous_state_out = userdata.S1_desired_state_in
+                userdata.S1_desired_state_out, output_state = get_action(1)
+                return 'Go_Searching'
+
+
+            # else:
+                # "goal was not achieved"
+                # return 'end_demo'
 
 
 tts=whole_body = None

@@ -60,7 +60,6 @@ class ObjectTracker(object):
         self.sm_as.start()
         rospy.loginfo("sm started")
 
-
         self.smlasttime=rospy.get_time()
         self.last_navitime=rospy.get_time()
         self.last_imagetime=rospy.get_time()
@@ -209,7 +208,7 @@ class ObjectTracker(object):
         map_topic="/projected_map"
         rospy.Subscriber(map_topic, OccupancyGrid, self.map_Cb)
         bottle_topic="/bottle_center"
-        # rospy.Subscriber(bottle_topic, PointStamped, self.bottle_Cb)
+        rospy.Subscriber(bottle_topic, PointStamped, self.bottle_Cb)
 
         staticmap_topic="/static_obstacle_map_ref"
         rospy.Subscriber(staticmap_topic, OccupancyGrid, self.staticmap_Cb)
@@ -222,10 +221,11 @@ class ObjectTracker(object):
         self.sm_result.current_mode=-1
 
         if self.Init_track:
-            if (curtime - self.smlasttime)>2.5:
+            if (curtime - self.smlasttime)>2.0:
+                rospy.loginfo("current context_mode = %d", self.context_modes[0])
                 self.sm_result.current_mode=self.context_modes[0]
                 self.smlasttime=rospy.get_time()
-                if self.sm_result.current_mode>1:
+                if self.sm_result.current_mode>0:
                     self.sm_as.publish_feedback(self.sm_feedback)
                     #TODO: put feedback_Info
             else:
@@ -458,12 +458,14 @@ class ObjectTracker(object):
     def bottle_Cb(self,msg):
 
         if self.Init_track:
-            if len(msg.poses)>0:
-                self.last_targetlocations[0]=msg.point
-                self.last_observations[0]=rospy.get_time()
-                self.Estimate_Filter3D()
-                self.Update_Measurement_Filter3D(0, msg.point.x,
-                    msg.point.y)
+            # if len(msg.poses)>0:
+            rospy.loginfo("bottle callback")
+            self.context_modes[0]=0
+            self.last_targetlocations[0]=msg.point
+            self.last_observations[0]=rospy.get_time()
+            self.Estimate_Filter3D()
+            self.Update_Measurement_Filter3D(0, msg.point.x,
+                msg.point.y)
 
     def object_callback(self,msg):
         self.infoarray=msg
@@ -530,9 +532,9 @@ class ObjectTracker(object):
                                 if (cur_time - last_time.secs)>5.0:
                                     self.context_modes[id]=1
                                     rospy.loginfo("----missing case---")
-                                    outputpointset=[]
+                                    # outputpointset=[]
                                     # update outoffovpoint 
-                                    self.get_fov_outpoints()
+                                    # self.get_fov_outpoints()
                                     # outputpointset.append(self.outoffovpoint)
                                     # outputpointset.append(self.outoffovpoint2)
                                     self.Estimate_Filter3D_pointset(id,self.get_fov_outpoints())
@@ -724,18 +726,18 @@ class ObjectTracker(object):
                             box_center = Point((bbox.xmin+bbox.xmax)/2, (bbox.xmin+bbox.xmax)/2, self.target_z)
                             if box_center.x<200:
                                 ee_desired_cmd=1
-                                desired_head_pan = self.robot_pose[3]+0.3
+                                desired_head_pan = self.robot_pose[3]+0.35
                                 rospy.loginfo("deisred_head : left")
                             elif box_center.x<100:
-                                desired_head_pan = self.robot_pose[3]+0.6
+                                desired_head_pan = self.robot_pose[3]+0.75
                                 rospy.loginfo("deisred_head : left")
                             elif box_center.x>450:
                                 ee_desired_cmd=2
-                                desired_head_pan = self.robot_pose[3]-0.3
+                                desired_head_pan = self.robot_pose[3]-0.35
                                 rospy.loginfo("deisred_head : right")
                             elif box_center.x>560:
                                 ee_desired_cmd=2
-                                desired_head_pan = self.robot_pose[3]-0.55
+                                desired_head_pan = self.robot_pose[3]-0.75
                                 rospy.loginfo("deisred_head : right")
                             else:
                                 ee_desired_cmd=0
@@ -754,10 +756,10 @@ class ObjectTracker(object):
                             desired_base_cmd.data =  desired_base_forward
                             self.base_command_pub.publish(desired_base_cmd)
 
-                cur_time = rospy.get_time()
-                time_duration = cur_time -self.last_imagetime
-                if (time_duration >5.0):
-                    self.context_modes[id]=self.last_context_mode
+            cur_time = rospy.get_time()
+            time_duration = cur_time -self.last_imagetime
+                    # if (time_duration >5.0):
+                        # self.context_modes[id]=self.last_context_mode
                     
 
 
@@ -900,19 +902,21 @@ class ObjectTracker(object):
         #Predict the position of the target
         for id in range(len(self.trackers3d)):
             if self.context_modes[id]==0: 
-               self.Estimate_Filter3D_idx(id)
+                self.Estimate_Filter3D_idx(id)
+                self.last_context_mode=self.context_modes[id]
                 # self.trackers3d[id].predict(x_velocity=0.01, y_velocity=0.01, std=self.std3d)
             elif self.context_modes[id]==1: # searching mode
                 rospy.loginfo("searching mode for %s", self.target_strings[id])
                 self.get_fov_outpoints()
                 self.Estimate_Filter3D_pointset(id,self.get_fov_outpoints())
+                self.last_context_mode=self.context_modes[id]
                 #update no measurement
-                for i in range(len(self.trackers3d[id].particles)):
-                    x_particle = self.trackers3d[id].particles[i,0]
-                    y_particle = self.trackers3d[id].particles[i,1]
-                    if self.Is_inFOV(x_particle,y_particle, self.robot_pose)==True:
-                        self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+uniform(-0.05,0.05)
-                        self.trackers3d[id].particles[i,1]=self.last_targetlocations[id].y+uniform(-0.05,0.05)
+                # for i in range(len(self.trackers3d[id].particles)):
+                    # x_particle = self.trackers3d[id].particles[i,0]
+                    # y_particle = self.trackers3d[id].particles[i,1]
+                    # if self.Is_inFOV(x_particle,y_particle, self.robot_pose)==True:
+                        # self.trackers3d[id].particles[i,0]=self.last_targetlocations[id].x+uniform(-0.05,0.05)
+                        # self.trackers3d[id].particles[i,1]=self.last_targetlocations[id].y+uniform(-0.05,0.05)
 
             elif self.context_modes[id]==2: # occ_with_identified object
                 rospy.loginfo("occ_with identifiable object")
@@ -1393,6 +1397,8 @@ class ObjectTracker(object):
                     # rospy.loginfo("in field of view")
                         entropy_sum-=self.trackers3d[0].weights[j]*np.log2(self.trackers3d[0].weights[j])
                         particle_count+=1
+                
+                # rospy.loginfo("searching mode partilce counts : %d", particle_count)
             else:
                 #TODO
                 # rospy.loginfo("occlusion form others")
@@ -1421,7 +1427,7 @@ class ObjectTracker(object):
 
         if is_occfovclouds:
             current_time = rospy.get_time()
-            if (current_time-self.last_occfovtime)>10.0:
+            if (current_time-self.last_occfovtime)>5.0:
                 rospy.loginfo("occpartice sizes = %d", len(occfovclouds))
                 header=std_msgs.msg.Header()
                 header.stamp=rospy.Time.now()
@@ -1448,36 +1454,36 @@ class ObjectTracker(object):
         self.opt_pose_pub.publish(selected_pose)
         self.sm_feedback.opt_pose= selected_pose
 
-        '''
-        desird_head_angle = self.meas_samples[max_idx,2]
-        #this desired_head_angle includes base+_head
-        desird_head_angle = desird_head_angle-self.robot_pose[2]
-        diff_angle = desird_head_angle -self.robot_pose[3];
-        if diff_angle>1.0:
-            diff_angle=0.5
-        elif diff_angle<-1.0:
-            diff_angle=-0.5
-        elif abs(diff_angle)<0.4:
-            return
+
+        if self.context_modes[0]==1:
+            desird_head_angle = self.meas_samples[max_idx,2]
+            #this desired_head_angle includes base+_head
+            desird_head_angle = desird_head_angle-self.robot_pose[2]
+            diff_angle = desird_head_angle -self.robot_pose[3];
+            if diff_angle>1.0:
+                diff_angle=0.5
+            elif diff_angle<-1.0:
+                diff_angle=-0.5
+            elif abs(diff_angle)<0.25:
+                return
         
         #publish the desired joint angles
-        # desired_pan_joint = Float32()
-        # desired_pan_joint.data= self.robot_pose[3]+diff_angle*0.6
-        # self.head_command_pub.publish(desired_pan_joint)
-        '''
+            desired_pan_joint = Float32()
+            desired_pan_joint.data= self.robot_pose[3]+diff_angle*0.7
+            self.head_command_pub.publish(desired_pan_joint)
 
-        distance =0.0
-        distance +=math.pow(self.robot_pose[0]-selected_pose.pose.position.x,2)
-        distance +=math.pow(self.robot_pose[1]-selected_pose.pose.position.y,2)
-        distance  =math.sqrt(distance)
+        # distance =0.0
+        # distance +=math.pow(self.robot_pose[0]-selected_pose.pose.position.x,2)
+        # distance +=math.pow(self.robot_pose[1]-selected_pose.pose.position.y,2)
+        # distance  =math.sqrt(distance)
         # distance = np.linalg.norm(self.particles - position, axis=1)
         #call action client
-        if self.navi_mode==1:
-            if distance>0.5:
-                self.navigation_action(selected_pose.pose.position.x, selected_pose.pose.position.y, desird_head_angle)
-                self.navi_mode=0
-            else:
-                rospy.loginfo("distance limit")
+        # if self.navi_mode==1:
+            # if distance>0.5:
+                # self.navigation_action(selected_pose.pose.position.x, selected_pose.pose.position.y, desird_head_angle)
+                # self.navi_mode=0
+            # else:
+                # rospy.loginfo("distance limit")
 
 
     def listener(self,wait=0.0):
