@@ -1338,9 +1338,14 @@ class ObjectTracker(object):
 
         #generate random position from robot
         self.meas_samples=np.empty((num,3))
-        self.meas_samples[:,0]=np.random.uniform(self.robot_pose[0]-1*x_distance_bound, self.robot_pose[0]+1.5*x_distance_bound,num)
-        self.meas_samples[:,1]=np.random.uniform(self.robot_pose[1]-y_distance_bound, self.robot_pose[1]+y_distance_bound,num)
-        random_theta=camera_ori+np.random.uniform(-math.pi/3,math.pi/3,num)
+        #random version
+        # self.meas_samples[:,0]=np.random.uniform(self.robot_pose[0]-1*x_distance_bound, self.robot_pose[0]+1.5*x_distance_bound,num)
+        # self.meas_samples[:,1]=np.random.uniform(self.robot_pose[1]-y_distance_bound, self.robot_pose[1]+y_distance_bound,num)
+        # random_theta=camera_ori+np.random.uniform(-math.pi/3,math.pi/3,num)
+        #uniform version
+        self.meas_samples[:,0]=uniform(self.robot_pose[0]-1*x_distance_bound, self.robot_pose[0]+1.5*x_distance_bound,num)
+        self.meas_samples[:,1]=uniform(self.robot_pose[1]-y_distance_bound, self.robot_pose[1]+y_distance_bound,num)
+        random_theta=camera_ori+uniform(-math.pi/3,math.pi/3,num)
 
         # print "camera ori", camera_ori
         # print "math.pi/2",math.pi/2
