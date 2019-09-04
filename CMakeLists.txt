@@ -21,6 +21,8 @@ find_package(catkin
     pointcloud_processing_msgs
     villa_manipulation
     navi_service
+    visual_perception
+    human_tracker
 )
 
 find_package(PCL 1.7 REQUIRED)
@@ -38,6 +40,7 @@ add_action_files(
   DIRECTORY action
   FILES GazeRecog.action
   MultiTrack.action
+  PersonTrack.action
   ModeConverter.action
 )
 

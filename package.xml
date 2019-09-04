@@ -15,10 +15,12 @@
   <depend>people_msgs</depend>
   <depend>keyboard</depend>
   <depend>villa_yolocloud</depend>
+  <depend>human_tracker</depend>
   <build_depend>octomap_msgs</build_depend>
   <build_depend>pointcloud_processing_msgs</build_depend>
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>villa_manipulation</exec_depend>
   <exec_depend>navi_service</exec_depend>
+  <exec_depend>visual_perception</exec_depend>
  </package>

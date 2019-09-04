@@ -12,6 +12,7 @@ from std_msgs.msg import Int32MultiArray
 from tmc_msgs.msg import BatteryState
 from hsrb_interface import Robot
 from hsrb_interface import exceptions
+from visual_perception.msg import *
 # from villa_manipulation.msg import *
 # import roslib
 import rospy
@@ -66,10 +67,12 @@ def sm_feedback_Cb(msg):
     global is_feedback
     global opt_pose
     global last_target_pos
+    global is_obstacle
     rospy.loginfo("feedback callback")
     is_feedback=True
     opt_pose =msg.opt_pose
     last_target_pos =msg.last_target_position
+    is_obstacle = msg.is_obstacle
     # print msg
 
 def get_policy():
@@ -102,17 +105,30 @@ def headtracking_action():
     # headtracking_actionresult = headtracking_cli.get_state()
     # return headtracking_actionresult
 
+
+def search_action():
+    goal = visual_perception.msg.SearchGoal()
+    search_cli.send_goal(goal)
+    search_cli.wait_for_result()
+    rospy.loginfo("search_action completed")
+    search_result = search_cli.get_state()
+    return search_result
+
+
 def approach_action(desired_pose):
     # rospy.loginfo("approach_action_")
     global is_feedback
     global opt_pose
     global last_target_pos
+    global is_obstacle
 
     print "is_feedback", is_feedback
+    print "is_obstacle", is_obstacle
     if is_feedback:
-        rospy.loginfo("approach_action if inside")
+
+        # rospy.loginfo("approach_action if inside")
         goal = navi_service.msg.ApproachGoal()
-        
+
         # desired_pose=PoseStamped()
         desired_pose.header.frame_id='map'
         desired_pose.header.stamp=rospy.Time.now()
@@ -126,17 +142,22 @@ def approach_action(desired_pose):
         gaze_pose.header.stamp=rospy.Time.now()
         gaze_pose.pose.position.x=last_target_pos.x
         gaze_pose.pose.position.y=last_target_pos.y
-        goal.gaze_target = gaze_pose
-        approach_client.send_goal(goal)
-        approach_client.wait_for_result()
-        approach_state = approach_client.get_state()
-        return approach_state 
+        if is_obstacle==False:
+            goal.gaze_target = gaze_pose
+            approach_client.send_goal(goal)
+            approach_client.wait_for_result()
+            approach_state = approach_client.get_state()
+            # rospy.loginfo("approach action state = ", approach_state)
+            return approach_state 
+        else:
+            rospy.loginfo("approach cannot be called because of obstacles")
+            return 3
         # return 3
     else:
         rospy.loginfo("approach_else")
         return 3
 
-    
+
 
 
 def navigation_action(desired_pose):
@@ -209,19 +230,25 @@ def generate_send_goal(cmd_idx, cmd_state, prev_state):
     global opt_pose
 
     # rospy.loginfo("generate_send_goal, cmd_state: %d", cmd_state)
+    # if cmd_idx equals to -1, action server is running 
     if cmd_idx ==-1:
             return GoalStatus.SUCCEEDED
+
     # Move_Base = True
     action_state=GoalStatus.SUCCEEDED
     # cmd_state = desired_states[cmd_idx]
     if cmd_state == 0:
-        rospy.loginfo("tracking")
+        rospy.loginfo("tracking with head&base")
+        approach_client.cancel_all_goals()
+        search_cli.cancel_all_goals()
         action_state = headtracking_action()
         # move_action_state=navigation_action(goal_x,goal_y,goal_yaw)
     elif cmd_state == 1:
         rospy.loginfo("missing")
+        rospy.loginfo("tracking person")
         rospy.loginfo("generate_send_goal, cmd_state: %d", cmd_state)
-        action_state = headtracking_action()
+        action_state = search_action()
+        # action_state = headtracking_action()
     elif cmd_state == 2:
         # action_state = ee_control_action()
         rospy.sleep(0.5)
@@ -243,7 +270,6 @@ def generate_send_goal(cmd_idx, cmd_state, prev_state):
 
 
 def track_motion_during_duration( cmd_state, prev_state):
-
     cmd_idx=0
     # print "cmd_idx", cmd_idx
     start_time = rospy.get_time()
@@ -380,18 +406,17 @@ gaze_pose = PoseStamped()
 last_target_pos = Point()
 is_feedback=False
 
-
-# tts.say("Hello! I'm ready'")
 rospy.sleep(1)
-
 # initialize action client
 cli = actionlib.SimpleActionClient('/move_base/move', MoveBaseAction)
 sm_cli = actionlib.SimpleActionClient('state_machine', ModeConverterAction)
 headtracking_cli = actionlib.SimpleActionClient('headtracking_action', villa_manipulation.msg.HeadTrackingAction)
+search_cli = actionlib.SimpleActionClient('search_server', visual_perception.msg.SearchAction)
 # move_ik_client = actionlib.SimpleActionClient('moveit_ik',villa_manipulation.msg.Move_IkAction)
 approach_client = actionlib.SimpleActionClient('approach_action',navi_service.msg.ApproachAction)
 # wait for the action server to establish connection
 cli.wait_for_server()
+search_cli.wait_for_server()
 sm_cli.wait_for_server()
 headtracking_cli.wait_for_server()
 # move_ik_client.wait_for_server()
@@ -430,7 +455,6 @@ if __name__=='__main__':
         else:
             print "initialization wrong"
 
-	
 	outcome = sm.execute()
 
 

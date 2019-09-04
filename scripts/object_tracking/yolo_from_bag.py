@@ -218,9 +218,7 @@ class Process_Image():
 
                         key= cv2.waitKey(1) &0xFF
 
-
                 elif topic == "/camera/depth/image_rect": #depthtopic;
-                    
                     try:
                         depth_image = self.bridge.imgmsg_to_cv2(msg,"passthrough")
                         # depth_image = self.bridge.imgmsg_to_cv2(msg,"32FC1")
