@@ -86,13 +86,17 @@ def get_policy():
     sm_result = sm_cli.get_result()
     cmd_state = sm_result.current_mode
     rospy.loginfo("current mode : %d", cmd_state)
+
+    if cmd_state==0:
+            approach_client.cancel_all_goals()
+            search_cli.cancel_all_goals()
     # print "current_context", cmd_state
     return cmd_state
 
 def headtracking_action():
     goal = villa_manipulation.msg.HeadTrackingGoal()
     headtracking_cli.send_goal(goal)
-    headtracking_cli.wait_for_result()
+    headtracking_cli.wait_for_result(rospy.Duration(1.5))
     rospy.loginfo("head_tracking action completed")
     headtracking_actionresult = headtracking_cli.get_state()
     return headtracking_actionresult
@@ -109,9 +113,10 @@ def headtracking_action():
 def search_action():
     goal = visual_perception.msg.SearchGoal()
     search_cli.send_goal(goal)
-    search_cli.wait_for_result()
+    search_cli.wait_for_result(rospy.Duration(8.0))
     rospy.loginfo("search_action completed")
     search_result = search_cli.get_state()
+    search_cli.cancel_all_goals()
     return search_result
 
 
@@ -145,16 +150,20 @@ def approach_action(desired_pose):
         if is_obstacle==False:
             goal.gaze_target = gaze_pose
             approach_client.send_goal(goal)
-            approach_client.wait_for_result()
+            approach_client.wait_for_result(rospy.Duration(5.0))
             approach_state = approach_client.get_state()
             # rospy.loginfo("approach action state = ", approach_state)
+            approach_client.cancel_all_goals()
             return approach_state 
         else:
+            approach_client.cancel_all_goals()
             rospy.loginfo("approach cannot be called because of obstacles")
+
             return 3
         # return 3
     else:
         rospy.loginfo("approach_else")
+        approach_client.cancel_all_goals()
         return 3
 
 
@@ -251,13 +260,13 @@ def generate_send_goal(cmd_idx, cmd_state, prev_state):
         # action_state = headtracking_action()
     elif cmd_state == 2:
         # action_state = ee_control_action()
-        rospy.sleep(0.5)
+        # rospy.sleep(0.5)
         rospy.loginfo("searching- occ with known object")
         # action_state = moveit_ik_action()
         action_state = approach_action(opt_pose)
     elif cmd_state == 3:
         # action_state = headtracking_action()
-        rospy.sleep(0.5)
+        # rospy.sleep(0.5)
         action_state = approach_action(opt_pose)
         # action_state=navigation_action(opt_pose)
         # action_state = moveit_ik_action()
@@ -282,13 +291,13 @@ def track_motion_during_duration( cmd_state, prev_state):
     # print "prev_state", prev_state
 
     if cmd_state == 3:
-        max_dur = 5.0
+        max_dur = 4.0
     elif cmd_state ==2:
-        max_dur = 5.0
+        max_dur = 4.0
     elif cmd_state ==1:
-        max_dur = 2.5
+        max_dur = 2.0
     else:
-        max_dur = 0.5
+        max_dur = 0.35
 
     # print "max_dur", max_dur
     while (duration<max_dur or cmd_idx != -1):
@@ -305,10 +314,14 @@ def track_motion_during_duration( cmd_state, prev_state):
         if action_state == GoalStatus.SUCCEEDED:
             "duration time: %s, action_state %s," % (duration, action_state)
             cmd_idx= -1
+            return action_state
 
         elif action_state == GoalStatus.ACTIVE:
             rospy.loginfo("action is still active")
             continue
+
+        elif action_state == GoalStatus.ABORTED:
+            rospy.loginfo("action is aborted"  )
         else:
             # rospy.loginfo(")
             rospy.loginfo("output is wrong, current action_state is : %d",action_state  )
