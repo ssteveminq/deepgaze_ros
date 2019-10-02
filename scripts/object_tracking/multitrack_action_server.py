@@ -22,7 +22,7 @@ from deepgaze_ros.msg import ModeConverterAction, ModeConverterResult
 import actionlib
 from deepgaze_ros.msg import *
 from std_msgs.msg import String
-from std_msgs.msg import Int8, Float32, Float32MultiArray, Int8MultiArray
+from std_msgs.msg import Int8, Int32, Float32, Float32MultiArray, Int8MultiArray
 from nav_msgs.msg import OccupancyGrid
 from numpy.random import uniform
 from deepgaze.color_detection import BackProjectionColorDetector
@@ -40,8 +40,9 @@ from deepgaze.geometry_tools import tangent_point_circle_extpoint
 
 _MAP_TF='map'
 _SENSOR_TF ='head_rgbd_sensor_rgb_frame'
-OCC_RADIUS=0.275
+OCC_RADIUS=0.35
 MEAS_SAMPLENUM=75
+# MEAS_SAMPLENUM=64
 
 class ObjectTracker(object):
     def __init__(self, name,  wait=0.0):
@@ -126,10 +127,15 @@ class ObjectTracker(object):
         self.head_command_pub=rospy.Publisher('desired_head_pan',Float32,queue_size=10)
         self.base_command_pub=rospy.Publisher('desired_base_forward',Int8,queue_size=10)
         self.pcl_pub=rospy.Publisher("/particle_samples",PointCloud2,queue_size=50)
-        self.pcl_pub2=rospy.Publisher("/particle_samples2",PointCloud2,queue_size=50)
+        # self.pcl_pub2=rospy.Publisher("/particle_samples2",PointCloud2,queue_size=50)
         self.occpcl_pub=rospy.Publisher("/occ_particles",PointCloud2,queue_size=50)
-        self.findtargetpub=rospy.Publisher("/target_ext",Int8,queue_size=50)
+        self.findtargetpub=rospy.Publisher("/target_existence_image",Int8,queue_size=50)
         self.search_dirpub=rospy.Publisher("/search_dir",Int8,queue_size=50)
+        self.entropy_pub=rospy.Publisher("/information_gain",Int32,queue_size=50)
+        self.entropycost_pub=rospy.Publisher("/entropy_cost",Float32,queue_size=50)
+        self.travelcost_pub=rospy.Publisher("/travel_cost",Float32,queue_size=50)
+        self.perceptioncost_pub=rospy.Publisher("/perception_cost",Float32,queue_size=50)
+        self.totalcost_pub=rospy.Publisher("/total_cost",Float32,queue_size=50)
 
         self.last_occfovtime = rospy.get_time()
         # rospy.Service('/relearn_clothes', learn_clothes, self.learning_dataset)
@@ -139,7 +145,7 @@ class ObjectTracker(object):
         self.robot_pose=np.zeros((5,1))
         self.Init_track=False
         # self.target_ids=[]
-        self.target_strings=[]
+        # self.target_strings=[]
         self.trackers=[]
         self.trackers3d=[]
         self.templete_trackers=[]
@@ -224,19 +230,22 @@ class ObjectTracker(object):
 
     def sm_execute_cb(self, goal):
         curtime = rospy.get_time()
-        self.sm_result.current_mode=-1
+        # self.sm_result.current_mode=-1
 
         if self.Init_track:
-            if (curtime - self.smlasttime)>2.0:
-                rospy.loginfo("current context_mode = %d", self.context_modes[0])
-                self.sm_result.current_mode=self.context_modes[0]
-                self.smlasttime=rospy.get_time()
-                if self.sm_result.current_mode>0:
-                    self.sm_as.publish_feedback(self.sm_feedback)
+            # if (curtime - self.smlasttime)>1.0:
+            rospy.loginfo("current context_mode = %d", self.context_modes[0])
+            self.sm_result.current_mode=self.context_modes[0]
+            self.smlasttime=rospy.get_time()
+                # if self.sm_result.current_mode>0:
+                    # self.sm_as.publish_feedback(self.sm_feedback)
                     #TODO: put feedback_Info
-            else:
-                self.sm_result.current_mode=-1
+            # else:
+                # self.sm_result.current_mode=-1
 
+
+            # self.generate_q_samples(self.meas_sample_num)
+            # self.evaluate_q_samples()
             self.sm_as.publish_feedback(self.sm_feedback)
             self.sm_as.set_succeeded(self.sm_result)
         else:
@@ -298,6 +307,7 @@ class ObjectTracker(object):
         self.map_received=True
         
     def map_Cb(self,msg):
+        self.map_received=True
         self.dynamic_map = msg
 
     def navigation_action(self,goal_x,goal_y,goal_yaw):
@@ -507,7 +517,7 @@ class ObjectTracker(object):
                         cur_time = rospy.get_time()
                         
                         #case: if measurement comes within 2.0 sec
-                        if (cur_time - last_time.secs)<2.0:
+                        if (cur_time - last_time.secs)<2.5:
                             self.context_modes[id]=0
                             self.Estimate_Filter3D_idx(id)
                             self.Update_Measurement_Filter3D(id, self.infoarray.objectinfos[index].center.x,
@@ -547,8 +557,8 @@ class ObjectTracker(object):
                                        major_axis = Point()
                                        major_axis.x=self.last_targetlocations[0].x-self.robot_pose[0]
                                        major_axis.y=self.last_targetlocations[0].y-self.robot_pose[1]
-                                       self.occ_point.x= self.robot_pose[0]+0.8*major_axis.x
-                                       self.occ_point.y= self.robot_pose[1]+0.8*major_axis.y
+                                       self.occ_point.x= self.robot_pose[0]+0.6*major_axis.x
+                                       self.occ_point.y= self.robot_pose[1]+0.6*major_axis.y
                                        self.Estimate_Filter3D_point(id,self.last_targetlocations[id])
                                        # self.occ_point.x= self.occ_point.x-0.12
                                        occ_pointstamped=PointStamped()
@@ -1048,6 +1058,7 @@ class ObjectTracker(object):
                         # self.trackers3d[id].particles[i,1]=self.last_targetlocations[id].y+uniform(-0.25,0.25)
 
     def check_obsb_dynamic(self,pos_x,pos_y):
+        
         if self.map_received==False:
            return False
         map_idx=self.Coord2CellNum(pos_x,pos_y)
@@ -1064,10 +1075,8 @@ class ObjectTracker(object):
         if self.map_received==False:
            return False
 
-
         map_idx=self.Coord2CellNum_STATIC(pos_x,pos_y)
         # rospy.loginfo("map idx : %d ", map_idx )
-
         if(self.static_map.data[map_idx]>20):
             return True
         else:
@@ -1082,6 +1091,8 @@ class ObjectTracker(object):
 
         temp_x = pos_x-reference_origin_x
         temp_y = pos_y-reference_origin_y
+        # print "temp_x", temp_x
+        # print "temp_y", temp_y
 
         target_Coord_x= int(temp_x/self.dynamic_map.info.resolution)
         target_Coord_y= int(temp_y/self.dynamic_map.info.resolution)
@@ -1212,6 +1223,67 @@ class ObjectTracker(object):
             return True
         else:
             return False
+
+
+    def Is_inFOV_point_occs(self, point_x,point_y, test_robot_pos,occ_poses):
+        #return True if point is in FOV
+        #Use image plane
+        test_robot_pose=np.empty((3,1))
+        test_robot_pose[0]=test_robot_pos[0]
+        test_robot_pose[1]=test_robot_pos[1]
+        test_robot_pose[2]=test_robot_pos[2]
+        
+        if len(test_robot_pos)>3:
+           test_robot_pose[2]=self.robot_pose[2]+self.robot_pose[3]
+
+        #check if occ is in fov
+        if self.Is_inFOV_point(occ_pos,test_robot_pos):
+           # rospy.loginfo("occ in fov")
+
+           res1=self.getlinevalue(1,point_x, point_y,test_robot_pose)
+           res2=self.getlinevalue(2,point_x, point_y,test_robot_pose)
+
+           if res1 & res2:
+                # rospy.loginfo("point ( %.3lf, %.2lf) is also in fov",point_x, point_y)
+                point_inFOV=True
+           else:
+                return False
+
+           #find intersection point with 
+           for occ_pos in occ_poses:
+               origin_robot = Point(test_robot_pos[0], test_robot_pos[1],0.0)
+               tangentset = tangent_point_circle_extpoint(occ_pos, OCC_RADIUS, origin_robot)
+
+
+               test_point1 = Point(tangentset[0].x,tangentset[0].y,self.target_z) #flt
+               test_point2 = Point(tangentset[1].x,tangentset[1].y,self.target_z) #frt
+
+               tan_point1 = PointStamped()
+               tan_point2 = PointStamped()
+               tan_point1.point=test_point1
+               tan_point1.header.frame_id = 'map'
+               tan_point1.header.stamp= rospy.Time.now()
+               tan_point2.point=test_point2
+               tan_point2.header.frame_id = 'map'
+               tan_point2.header.stamp= rospy.Time.now()
+               self.tangent_point1_pub.publish(tan_point1)
+               self.tangent_point2_pub.publish(tan_point2)
+               # rospy.sleep(0.1)
+
+               res1=self.getlinevalue_int(1,point_x, point_y,test_point1, test_point2, test_robot_pose)
+               res2=self.getlinevalue_int(2,point_x, point_y,test_point1, test_point2, test_robot_pose)
+
+               if res1 & res2:
+                    return False
+               else:
+                    # rospy.loginfo("x : %.2lf, y : %.2lf ", x_particle, y_particle)
+                    return True
+
+        else:
+           return self.Is_inFOV(point_x,point_y,test_robot_pos)
+            
+
+
 
 
     def Is_inFOV_point_occ(self, point_x,point_y, test_robot_pos,occ_pos):
@@ -1359,6 +1431,7 @@ class ObjectTracker(object):
  
 
     def generate_q_samples(self, num):
+        rospy.loginfo("generate q samples")
         sample_num=num
         #finding major axis & minor axis between robot and target location
         major_axis = Point()
@@ -1373,8 +1446,8 @@ class ObjectTracker(object):
         minor_axis.x = -major_axis.y
         minor_axis.y = major_axis.x
 
-        major_bound=1.25;
-        minor_bound=0.35;
+        major_bound=1.0;
+        minor_bound=0.25;
         # rospy.loginfo("robot pose_theta: %.3lf, robot pose_y: %.3lf", self.robot_pose[2], self.robot_pose[3])
         camera_ori = self.robot_pose[2]+self.robot_pose[3]
 
@@ -1396,15 +1469,12 @@ class ObjectTracker(object):
 
 
 
-        #original version uniform version
-        # self.meas_samples[:,0]=uniform(self.robot_pose[0]-1*major_bound, self.robot_pose[0]+1.0*major_bound,num)
-        # self.meas_samples[:,1]=uniform(self.robot_pose[1]-minor_bound, self.robot_pose[1]+minor_bound,num)
-        # random_theta=camera_ori+uniform(-math.pi/3,math.pi/3,num)
+        #----original version uniform version---
         if abs(self.robot_pose[2])<math.pi/6:
             self.meas_samples[:,0]=uniform(self.robot_pose[0]-2*minor_bound, self.robot_pose[0]+2*minor_bound, num)
             self.meas_samples[:,1]=uniform(self.robot_pose[1]-2*major_bound, self.robot_pose[1]+2*major_bound, num)
         elif abs(self.robot_pose[2])<math.pi/3:
-            self.meas_samples[:,0]=uniform(self.robot_pose[0]-4*minor_bound,self.robot_pose[0]+4*minor_bound,num)
+            self.meas_samples[:,0]=uniform(self.robot_pose[0]-4*minor_bound, self.robot_pose[0]+4*minor_bound,num)
             self.meas_samples[:,1]=uniform(self.robot_pose[1]-4*minor_bound, self.robot_pose[1]+4*minor_bound,num)
         elif abs(self.robot_pose[2])<4*math.pi/6:
             self.meas_samples[:,0]=uniform(self.robot_pose[0]-2*major_bound, self.robot_pose[0]+2*major_bound,num)
@@ -1416,19 +1486,52 @@ class ObjectTracker(object):
             self.meas_samples[:,0]=uniform(self.robot_pose[0]-2*minor_bound, self.robot_pose[0]+2*minor_bound, num)
             self.meas_samples[:,1]=uniform(self.robot_pose[1]-2*major_bound, self.robot_pose[1]+2*major_bound, num)
 
-
-        # self.meas_samples[:,0]=uniform(self.robot_pose[0]-major_bound*major_axis.x-minor_bound*minor_axis.x, self.robot_pose[0]+major_bound*major_axis.x+minor_bound*minor_axis.x,num)
-        # self.meas_samples[:,1]=uniform(self.robot_pose[1]-major_bound*major_axis.y-minor_bound*minor_axis.y, self.robot_pose[1]+major_bound*major_axis.y+minor_bound*minor_axis.y,num)
-
-        # self.meas_samples[:,0]=uniform(self.robot_pose[0]-major_bound*major_axis.x-minor_bound*minor_axis.x, self.robot_pose[0]+major_bound*major_axis.x+minor_bound*minor_axis.x,num)
-        # self.meas_samples[:,1]=uniform(self.robot_pose[1]-major_bound*major_axis.y-minor_bound*minor_axis.y, self.robot_pose[1]+major_bound*major_axis.y+minor_bound*minor_axis.y,num)
-        # self.meas_samples[:,1]=uniform(self.robot_pose[1]-minor_bound, self.robot_pose[1]+minor_bound,num)
         random_theta=camera_ori+uniform(-math.pi/(2.5),math.pi/(2.5),num)
+        self.meas_samples[:,2]=random_theta
+        #----original version uniform version---
+
+        #x_num*y_num=total
+        # x_num=16
+        # y_num=4
+        # for i in range(x_num):
+            # for j in range(y_num):
+                # self.meas_samples=[i,j, camera_ori+uniform(-math.pi/(2.5), math.pi/(2.5),1)]
+
+        #trial version
+        # if abs(self.robot_pose[2])<math.pi/6:
+            # x_num=16
+            # y_num=4
+        # elif abs(self.robot_pose[2])<math.pi/3:
+            # x_num=8
+            # y_num=8
+        # elif abs(self.robot_pose[2])<4*math.pi/6:
+            # y_num=16
+            # x_num=4
+        # elif abs(self.robot_pose[2])<5*math.pi/6:
+            # x_num=8
+            # y_num=8
+        # elif abs(self.robot_pose[2])<math.pi:
+            # x_num=16
+            # y_num=4
+ 
+        # width = 0.15
+        # height= 0.5
+        # index=0
+        # for i in range(x_num):
+            # for j in range(y_num):
+                # x_coord = self.robot_pose[0]-width*(x_num/2)+i*width
+                # y_coord = self.robot_pose[1]-height*(y_num/2)+j*height
+                # self.meas_samples[index]=[x_coord,y_coord, camera_ori+uniform(-math.pi/(2.5), math.pi/(2.5),1)]
+                # index=index+1
+
+
+        # random_theta=camera_ori+uniform(-math.pi/(2.5),math.pi/(2.5),num)
+        # self.meas_samples[:,2]=random_theta
 
         # print "camera ori", camera_ori
         # print "math.pi/2",math.pi/2
         # print "random_theta",random_theta
-        self.meas_samples[:,2]=random_theta
+        # self.meas_samples[:,2]=random_theta
         # self.meas_samples[:,2]=np.random.uniform(camera_ori-math.pi/2,camera_ori+math.pi/2,num)
 
         #check obstacles 
@@ -1437,11 +1540,14 @@ class ObjectTracker(object):
             x_pos=self.meas_samples[i,0]
             y_pos=self.meas_samples[i,1]
             count=0
-            while self.check_obsb(x_pos,y_pos)==True | count <500:
+            while self.check_obsb_dynamic(x_pos,y_pos)==True | count <500:
                 # x_pos=np.random.uniform(self.robot_pose[0]-2*major_bound, self.robot_pose[0]+2*major_bound,1)
                 # y_pos=np.random.uniform(self.robot_pose[1]-2*minor_bound, self.robot_pose[1]+2*minor_bound,1)
-                x_pos=np.random.uniform(self.robot_pose[0]-2*major_bound*major_axis.x-minor_bound*1.5*minor_axis.x, self.robot_pose[0]+2*major_bound*major_axis.x+minor_bound*minor_axis.x,1)
-                x_pos=np.random.uniform(self.robot_pose[1]-2*major_bound*major_axis.y-minor_bound*1.5*minor_axis.y, self.robot_pose[1]+2*major_bound*major_axis.y+minor_bound*minor_axis.y,1)
+
+                x_pos=uniform(self.robot_pose[0]-2*major_bound, self.robot_pose[0]+2*major_bound, 1)
+                y_pos=uniform(self.robot_pose[1]-2*major_bound, self.robot_pose[1]+2*major_bound, 1)
+                # x_pos=np.random.uniform(self.robot_pose[0]-2*major_bound*major_axis.x-minor_bound*1.5*minor_axis.x, self.robot_pose[0]+2*major_bound*major_axis.x+minor_bound*minor_axis.x,1)
+                # x_pos=np.random.uniform(self.robot_pose[1]-2*major_bound*major_axis.y-minor_bound*1.5*minor_axis.y, self.robot_pose[1]+2*major_bound*major_axis.y+minor_bound*minor_axis.y,1)
                 # y_pos=np.random.uniform(self.robot_pose[1]-2*minor_bound, self.robot_pose[1]+2*minor_bound,1)
                 count=count+1
             self.meas_samples[i,0]=x_pos
@@ -1469,6 +1575,10 @@ class ObjectTracker(object):
         is_occfovclouds=False
         expected_entropy=[]
         particle_countset=[]
+        entropy_cost=[]
+        travel_cost=[]
+        percept_cost=[]
+        total_cost= []
         for i in range(len(self.meas_samples)):
             entropy_sum=0.0
             particle_count=0
@@ -1503,15 +1613,21 @@ class ObjectTracker(object):
 
             # rospy.loginfo("partilce counts : %d", particle_count)
             #TODO: add traveling cost
+            entropy_cost.append(entropy_sum)
             entropy_sum=4.5*entropy_sum
             traveling_cost = self.get_travelcost(self.meas_samples[i])
-            entropy_sum-=0.3*traveling_cost
+            travel_cost.append(traveling_cost)
+            entropy_sum-=0.2*traveling_cost
             perception_cost = self.get_perceptioncost(self.meas_samples[i])
-            entropy_sum-=0.6*perception_cost
+            percept_cost.append(perception_cost)
+            entropy_sum-=0.5*perception_cost
             expected_entropy.append(entropy_sum)
+            total_cost.append(entropy_sum)
             # rospy.loginfo("ettropy_sum: %.3lf", entropy_sum)
             particle_countset.append(particle_count)
+            # costdecomposition.append(particle_count)
 
+        '''
         if is_occfovclouds:
             current_time = rospy.get_time()
             if (current_time-self.last_occfovtime)>5.0:
@@ -1522,6 +1638,7 @@ class ObjectTracker(object):
                 occparticle_pcl=pcl2.create_cloud_xyz32(header,occfovclouds)
                 self.last_occfovtime = rospy.get_time()
                 self.occpcl_pub.publish(occparticle_pcl)
+        '''
                     
         # print "expected_entropy", expected_entropy
         sorted_entropy = sorted(((v,i) for i, v in enumerate(expected_entropy)),reverse=True)
@@ -1534,7 +1651,7 @@ class ObjectTracker(object):
         rospy.loginfo("best cost function value: %.2lf", sorted_entropy[0][0])
 
         sortnum=0
-        while particle_countset[max_idx]<300 & sortnum<MEAS_SAMPLENUM:
+        while particle_countset[max_idx]<380 & sortnum<MEAS_SAMPLENUM:
             sortnum=sortnum+1
             max_idx=sorted_entropy[sortnum][1]
             # rospy.loginfo("best index particle number: %d", particle_countset[max_idx])
@@ -1544,7 +1661,29 @@ class ObjectTracker(object):
                 self.sm_feedback.is_obstacle=True
                 return
             
+
+        #Publish cost values
         rospy.loginfo("best index particle number: %d", particle_countset[max_idx])
+        ig_msg = Int32()
+        ig_msg.data = particle_countset[max_idx]
+        self.entropy_pub.publish(ig_msg)
+
+        tc_msg = Float32()
+        tc_msg.data = travel_cost[max_idx]
+        self.travelcost_pub.publish(tc_msg)
+
+        pc_msg = Float32()
+        pc_msg.data = percept_cost[max_idx]
+        self.perceptioncost_pub.publish(pc_msg)
+
+        es_msg = Float32()
+        es_msg.data = entropy_cost[max_idx]
+        self.entropycost_pub.publish(es_msg)
+
+        total_msg = Float32()
+        total_msg .data = total_cost[max_idx]
+        self.totalcost_pub.publish(total_msg)
+
 
         if self.context_modes[0]==1:
             desird_head_angle = self.meas_samples[max_idx,2]
@@ -1564,7 +1703,7 @@ class ObjectTracker(object):
             self.head_command_pub.publish(desired_pan_joint)
 
 
-        if particle_countset[max_idx]>300:
+        if particle_countset[max_idx]>380:
             selected_pose=PoseStamped()
             test_quat= quaternion_from_euler(0,0,self.meas_samples[max_idx,2])
             selected_pose.pose=Pose(Point(self.meas_samples[max_idx][0],self.meas_samples[max_idx][1],self.target_z),Quaternion(test_quat[0],test_quat[1],test_quat[2],test_quat[3]))
@@ -1576,6 +1715,7 @@ class ObjectTracker(object):
             print "is_obstacle in opt_pose", is_obstacle
             self.sm_feedback.is_obstacle =is_obstacle
         else:
+            print "opt pose is not good enough"
             self.sm_feedback.is_obstacle=True
             return
 
@@ -1588,8 +1728,8 @@ class ObjectTracker(object):
             self.context_modes[0]=3
             #robot pos
             major_axis = Point()
-            major_axis.x=self.last_targetlocations[0]-self.robot_pose[0]
-            major_axis.y=self.last_targetlocations[1]-self.robot_pose[1]
+            major_axis.x=self.last_targetlocations[0].x-self.robot_pose[0]
+            major_axis.y=self.last_targetlocations[0].y-self.robot_pose[1]
             self.occ_point.x= self.robot_pose[0]+0.8*major_axis.x
             self.occ_point.y= self.robot_pose[1]+0.8*major_axis.y
             occ_pointstamped=PointStamped()
@@ -1597,7 +1737,7 @@ class ObjectTracker(object):
             occ_pointstamped.header.frame_id = 'map'
             occ_pointstamped.header.stamp = rospy.Time.now()
             self.occ_point_pub.publish(occ_pointstamped)
-            # self.context_modes[id]=1 #set to searching mode
+            # self.context_modes[id]=2 #set to searching mode
 
 
 
@@ -1628,6 +1768,7 @@ class ObjectTracker(object):
                 self.evaluate_q_samples()
                 self.visualizeparticles()
                 # self.checktargetcallback()
+                self.opt_pose_pub.publish(self.sm_feedback.opt_pose)
 
                 # cur_time=rospy.get_time()
 
@@ -1646,7 +1787,7 @@ class ObjectTracker(object):
                     # self.navi_mode=0
             
             # rospy.spinOnce()
-            rospy.Rate(1).sleep()
+            rospy.Rate(10).sleep()
 
 
 

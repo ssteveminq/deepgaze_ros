@@ -46,7 +46,7 @@ def get_action(current_state):
         return current_context, output_state
     else:
         if current_context == 0:
-            output_state = 'Go_Searching'
+            output_state = 'Go_Tracking'
         elif current_context == -1:
             if current_state == 0:
                 output_state = 'Go_Searching'
@@ -150,7 +150,8 @@ def approach_action(desired_pose):
         if is_obstacle==False:
             goal.gaze_target = gaze_pose
             approach_client.send_goal(goal)
-            approach_client.wait_for_result(rospy.Duration(5.0))
+            # approach_client.wait_for_result(rospy.Duration(8.0))
+            approach_client.wait_for_result()
             approach_state = approach_client.get_state()
             # rospy.loginfo("approach action state = ", approach_state)
             approach_client.cancel_all_goals()
@@ -299,6 +300,10 @@ def track_motion_during_duration( cmd_state, prev_state):
     else:
         max_dur = 0.35
 
+
+    action_state = generate_send_goal(cmd_idx, cmd_state, prev_state)
+
+    '''
     # print "max_dur", max_dur
     while (duration<max_dur or cmd_idx != -1):
 
@@ -328,6 +333,7 @@ def track_motion_during_duration( cmd_state, prev_state):
             continue
 
         iterator=0
+    '''
 
     return action_state
 
@@ -348,9 +354,10 @@ class Tracking_State(smach.State):
                 # print "userdata.S0_counter out", userdata.S0_counter_out
                 userdata.S0_previous_state_out = userdata.S0_desired_state_in
                 userdata.S0_desired_state_out, output_state = get_action(0)
+                rospy.sleep(0.25)
                 return output_state
 
-            elif action_state == GoalStatus.Active:
+            elif action_state == GoalStatus.ACTIVE:
                 # userdata.S0_counter_out=userdata.S0_counter_in+1
                 # print "userdata.S0_counter out", userdata.S0_counter_out
                 userdata.S0_previous_state_out = userdata.S0_desired_state_in
@@ -364,6 +371,7 @@ class Tracking_State(smach.State):
                 # print "userdata.S0_counter out", userdata.S0_counter_out
                 userdata.S0_previous_state_out = userdata.S0_desired_state_in
                 userdata.S0_desired_state_out, output_state = get_action(0)
+                rospy.sleep(0.25)
                 return 'Go_Searching'
 
 
@@ -383,6 +391,7 @@ class Searching_State(smach.State):
                 # print "userdata.S1_counter out", userdata.S1_counter_out
                 userdata.S1_previous_state_out = userdata.S1_desired_state_in
                 userdata.S1_desired_state_out, output_state = get_action(1)
+                rospy.sleep(0.25)
                 return output_state
             else:
                 # "goal was not achieved"
@@ -419,7 +428,7 @@ gaze_pose = PoseStamped()
 last_target_pos = Point()
 is_feedback=False
 
-rospy.sleep(1)
+rospy.sleep(0.1)
 # initialize action client
 cli = actionlib.SimpleActionClient('/move_base/move', MoveBaseAction)
 sm_cli = actionlib.SimpleActionClient('state_machine', ModeConverterAction)
